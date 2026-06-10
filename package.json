@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "playwright test tests/runtime-contract.spec.ts tests/renderer-capabilities.spec.ts",
+    "test": "playwright test tests/runtime-contract.spec.ts tests/renderer-capabilities.spec.ts tests/editor-commands.spec.ts",
     "test:exports": "playwright test tests/export-smoke.spec.ts"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import { Box, Circle, Cone, Cylinder, Eye, EyeOff, Image, MousePointer2, SquareDashedMousePointer, Type } from "lucide-react";
+import { Box, Circle, Cone, Copy, Cylinder, Eye, EyeOff, Image, MousePointer2, SquareDashedMousePointer, Trash2, Type } from "lucide-react";
 import type { EntitySpec } from "../../engine/quest/WorldSpec";
 
 interface SceneHierarchyProps {
@@ -6,6 +6,8 @@ interface SceneHierarchyProps {
   selectedId?: string;
   onSelect: (id: string) => void;
   onToggleVisible: (id: string) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
 }
 
 const iconByType = {
@@ -19,7 +21,7 @@ const iconByType = {
   imageBillboard: Image,
 };
 
-export function SceneHierarchy({ entities, selectedId, onSelect, onToggleVisible }: SceneHierarchyProps) {
+export function SceneHierarchy({ entities, selectedId, onSelect, onToggleVisible, onDelete, onDuplicate }: SceneHierarchyProps) {
   return (
     <section className="panel-section">
       <div className="section-heading">
@@ -58,6 +60,44 @@ export function SceneHierarchy({ entities, selectedId, onSelect, onToggleVisible
                 }}
               >
                 {entity.visible ? <Eye size={15} /> : <EyeOff size={15} />}
+              </span>
+              <span
+                className="row-icon-action"
+                role="button"
+                tabIndex={0}
+                title="Duplicate entity"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDuplicate(entity.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onDuplicate(entity.id);
+                  }
+                }}
+              >
+                <Copy size={14} />
+              </span>
+              <span
+                className="row-icon-action danger"
+                role="button"
+                tabIndex={0}
+                title="Delete entity"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(entity.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onDelete(entity.id);
+                  }
+                }}
+              >
+                <Trash2 size={14} />
               </span>
             </button>
           );

@@ -1,4 +1,4 @@
-import { Download, PanelRight, Play, Sparkles, SunMedium, Undo2 } from "lucide-react";
+import { Download, PanelRight, Play, Redo2, RefreshCcw, Sparkles, SunMedium, Undo2 } from "lucide-react";
 import type { WorldSpec } from "../../engine/quest/WorldSpec";
 
 interface TopToolbarProps {
@@ -7,6 +7,12 @@ interface TopToolbarProps {
   onToggleInspector: () => void;
   onExport: () => void;
   onGenerate: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel?: string;
+  redoLabel?: string;
+  onUndo: () => void;
+  onRedo: () => void;
   onReset: () => void;
 }
 
@@ -16,6 +22,12 @@ export function TopToolbar({
   onToggleInspector,
   onExport,
   onGenerate,
+  canUndo,
+  canRedo,
+  undoLabel,
+  redoLabel,
+  onUndo,
+  onRedo,
   onReset,
 }: TopToolbarProps) {
   return (
@@ -37,8 +49,26 @@ export function TopToolbar({
       </div>
 
       <div className="toolbar-actions">
-        <button className="icon-button ghost" type="button" title="Reset template" onClick={onReset}>
+        <button
+          className="icon-button ghost"
+          type="button"
+          title={undoLabel ? `Undo: ${undoLabel}` : "Undo"}
+          onClick={onUndo}
+          disabled={!canUndo}
+        >
           <Undo2 size={17} />
+        </button>
+        <button
+          className="icon-button ghost"
+          type="button"
+          title={redoLabel ? `Redo: ${redoLabel}` : "Redo"}
+          onClick={onRedo}
+          disabled={!canRedo}
+        >
+          <Redo2 size={17} />
+        </button>
+        <button className="icon-button ghost" type="button" title="Reset template" onClick={onReset}>
+          <RefreshCcw size={17} />
         </button>
         <button className="icon-button ghost" type="button" title="Theme ready">
           <SunMedium size={17} />

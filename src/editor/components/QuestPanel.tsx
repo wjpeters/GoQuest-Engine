@@ -1,11 +1,13 @@
 import { Flag, Trophy } from "lucide-react";
+import type { QuestSpec } from "../../engine/quest/QuestSpec";
 import type { WorldSpec } from "../../engine/quest/WorldSpec";
 
 interface QuestPanelProps {
   world: WorldSpec;
+  onUpdateQuest: (patch: Partial<QuestSpec>) => void;
 }
 
-export function QuestPanel({ world }: QuestPanelProps) {
+export function QuestPanel({ world, onUpdateQuest }: QuestPanelProps) {
   return (
     <section className="lower-panel">
       <div className="lower-panel-header">
@@ -18,15 +20,25 @@ export function QuestPanel({ world }: QuestPanelProps) {
       <div className="quest-state-grid">
         <div className="metric-card">
           <small>Score</small>
-          <strong>{world.quest.score}</strong>
+          <input
+            type="number"
+            value={world.quest.score}
+            onChange={(event) => onUpdateQuest({ score: Number(event.target.value) })}
+          />
         </div>
         <div className="metric-card">
           <small>Stages</small>
           <strong>{world.quest.stages.length}</strong>
         </div>
         <div className="metric-card">
-          <small>Outcomes</small>
-          <strong>{world.quest.outcomes.length}</strong>
+          <small>Current stage</small>
+          <select value={world.quest.currentStage} onChange={(event) => onUpdateQuest({ currentStage: event.target.value })}>
+            {world.quest.stages.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.title}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <div className="stage-list">

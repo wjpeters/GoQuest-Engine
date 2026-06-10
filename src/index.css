@@ -177,8 +177,8 @@ button {
   white-space: nowrap;
 }
 
-.icon-button:hover,
-.tool-button:hover,
+.icon-button:not(:disabled):hover,
+.tool-button:not(:disabled):hover,
 .hierarchy-row:hover,
 .template-card:hover,
 .primitive-button:hover {
@@ -201,6 +201,19 @@ button {
 .icon-button.danger {
   border-color: rgba(251, 113, 133, 0.3);
   color: #fecdd3;
+}
+
+.icon-button.small {
+  width: 28px;
+  min-height: 28px;
+  border-radius: 8px;
+}
+
+.icon-button:disabled,
+.tool-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
 }
 
 .workspace {
@@ -332,7 +345,7 @@ button {
 
 .hierarchy-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -361,13 +374,58 @@ button {
   white-space: nowrap;
 }
 
-.visibility-control {
+.visibility-control,
+.row-icon-action {
   display: grid;
   width: 28px;
   height: 28px;
   place-items: center;
   border-radius: 8px;
   color: var(--muted);
+}
+
+.row-icon-action.danger {
+  color: #fecdd3;
+}
+
+.history-panel {
+  padding-bottom: 4px;
+}
+
+.history-list {
+  display: grid;
+  gap: 7px;
+}
+
+.history-row,
+.history-empty {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.history-row {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+}
+
+.history-row strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-row span,
+.history-empty {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-empty {
+  padding: 10px;
 }
 
 .center-column {
@@ -560,6 +618,11 @@ button {
   font-size: 14px;
 }
 
+.inspector-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .flow-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -574,6 +637,22 @@ button {
   border-radius: 11px;
 }
 
+.flow-card.editable {
+  cursor: pointer;
+}
+
+.flow-card.selected {
+  border-color: rgba(167, 243, 208, 0.46);
+  background: rgba(167, 243, 208, 0.08);
+}
+
+.flow-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .flow-trigger {
   display: inline-flex;
   align-items: center;
@@ -586,6 +665,29 @@ button {
 .flow-card span {
   color: var(--soft);
   font-size: 12px;
+}
+
+.flow-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.flow-edit-grid label {
+  display: grid;
+  gap: 4px;
+}
+
+.flow-edit-grid select,
+.metric-card input,
+.metric-card select {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: rgba(3, 6, 13, 0.58);
+  color: var(--text);
 }
 
 .quest-state-grid {
@@ -607,6 +709,11 @@ button {
 
 .metric-card strong {
   font-size: 20px;
+}
+
+.metric-card input,
+.metric-card select {
+  margin-top: 2px;
 }
 
 .stage-row,
@@ -1146,10 +1253,10 @@ button {
   gap: 10px;
 }
 
-.tool-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-  transform: none;
+.tool-button.compact {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 @media (max-width: 1180px) {

@@ -1,15 +1,18 @@
-import { Eye, EyeOff, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { EntitySpec, EntityType } from "../../engine/quest/WorldSpec";
 
 interface InspectorProps {
   entity?: EntitySpec;
   onPatch: (patch: Partial<EntitySpec>) => void;
+  onTransformPatch: (patch: Partial<EntitySpec["transform"]>) => void;
+  onMaterialPatch: (patch: Partial<EntitySpec["material"]>) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }
 
 const entityTypes: EntityType[] = ["box", "sphere", "plane", "cylinder", "cone", "text", "hotspot", "imageBillboard"];
 
-export function Inspector({ entity, onPatch, onDelete }: InspectorProps) {
+export function Inspector({ entity, onPatch, onTransformPatch, onMaterialPatch, onDelete, onDuplicate }: InspectorProps) {
   if (!entity) {
     return (
       <aside className="right-inspector">
@@ -25,7 +28,7 @@ export function Inspector({ entity, onPatch, onDelete }: InspectorProps) {
   const patchTransform = (key: keyof EntitySpec["transform"], index: number, value: number) => {
     const next = [...entity.transform[key]] as [number, number, number];
     next[index] = value;
-    onPatch({ transform: { ...entity.transform, [key]: next } });
+    onTransformPatch({ [key]: next });
   };
 
   return (
@@ -35,9 +38,14 @@ export function Inspector({ entity, onPatch, onDelete }: InspectorProps) {
           <span>Inspector</span>
           <strong>{entity.name}</strong>
         </div>
-        <button className="icon-button danger" type="button" title="Delete entity" onClick={onDelete}>
-          <Trash2 size={16} />
-        </button>
+        <div className="inspector-actions">
+          <button className="icon-button ghost" type="button" title="Duplicate entity" onClick={onDuplicate}>
+            <Copy size={16} />
+          </button>
+          <button className="icon-button danger" type="button" title="Delete entity" onClick={onDelete}>
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       <label className="field">
@@ -77,7 +85,7 @@ export function Inspector({ entity, onPatch, onDelete }: InspectorProps) {
       <div className="field-grid two">
         <label className="field">
           <span>Color</span>
-          <input type="color" value={entity.material.color} onChange={(event) => onPatch({ material: { ...entity.material, color: event.target.value } })} />
+          <input type="color" value={entity.material.color} onChange={(event) => onMaterialPatch({ color: event.target.value })} />
         </label>
         <label className="field">
           <span>Opacity</span>
@@ -87,7 +95,7 @@ export function Inspector({ entity, onPatch, onDelete }: InspectorProps) {
             max={1}
             step={0.05}
             value={entity.material.opacity}
-            onChange={(event) => onPatch({ material: { ...entity.material, opacity: Number(event.target.value) } })}
+            onChange={(event) => onMaterialPatch({ opacity: Number(event.target.value) })}
           />
         </label>
       </div>

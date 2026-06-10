@@ -1,16 +1,21 @@
 import { Box, Circle, Cone, Cylinder, Layers3, MousePointer2, Plus, Sparkles } from "lucide-react";
 import type { EntityType, WorldSpec } from "../../engine/quest/WorldSpec";
+import type { CommandHistoryEntry } from "../commands";
 import { templates } from "../../templates";
 import { SceneHierarchy } from "./SceneHierarchy";
 import { ValidationPanel } from "./ValidationPanel";
+import { HistoryPanel } from "./HistoryPanel";
 
 interface LeftSidebarProps {
   world: WorldSpec;
   selectedId?: string;
+  history: readonly CommandHistoryEntry[];
   onSelectEntity: (id: string) => void;
   onTemplate: (template: WorldSpec) => void;
   onAddEntity: (type: EntityType) => void;
   onToggleVisible: (id: string) => void;
+  onDeleteEntity: (id: string) => void;
+  onDuplicateEntity: (id: string) => void;
 }
 
 const addButtons: Array<{ type: EntityType; label: string; icon: typeof Box }> = [
@@ -24,10 +29,13 @@ const addButtons: Array<{ type: EntityType; label: string; icon: typeof Box }> =
 export function LeftSidebar({
   world,
   selectedId,
+  history,
   onSelectEntity,
   onTemplate,
   onAddEntity,
   onToggleVisible,
+  onDeleteEntity,
+  onDuplicateEntity,
 }: LeftSidebarProps) {
   return (
     <aside className="left-sidebar">
@@ -78,7 +86,11 @@ export function LeftSidebar({
         selectedId={selectedId}
         onSelect={onSelectEntity}
         onToggleVisible={onToggleVisible}
+        onDelete={onDeleteEntity}
+        onDuplicate={onDuplicateEntity}
       />
+
+      <HistoryPanel entries={history} />
     </aside>
   );
 }
