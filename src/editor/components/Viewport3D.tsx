@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Cpu, MousePointerClick, Rotate3D } from "lucide-react";
 import { EventBus } from "../../engine/core/EventBus";
-import { Canvas2DRenderer } from "../../engine/render/Canvas2DRenderer";
-import type { Renderer } from "../../engine/render/Renderer";
-import { WebGL2Renderer } from "../../engine/render/WebGL2Renderer";
+import type { Renderer, RendererBackend, RendererCapabilityIssue, RendererFeature } from "../../engine/render/Renderer";
+import { EDITOR_RENDERER_POLICY, RendererFactory, type RendererSelectionResult } from "../../engine/render/RendererFactory";
 import { SceneSerializer } from "../../engine/scene/SceneSerializer";
 import { QuestRuntime, type QuestRuntimeMessage } from "../../engine/quest/QuestRuntime";
 import type { WorldSpec } from "../../engine/quest/WorldSpec";
@@ -20,9 +19,11 @@ interface Viewport3DProps {
 
 export function Viewport3D({ world, selectedId, onSelectEntity, onWorldChange, onRuntimeMessage }: Viewport3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rendererRef = useRef<Renderer | null>(null);
   const worldRef = useRef(world);
-  const [rendererMode, setRendererMode] = useState<Renderer["mode"]>("webgl2");
+  const [rendererMode, setRendererMode] = useState<RendererBackend>("webgl2");
   const [rendererError, setRendererError] = useState<string>();
+  const [rendererSelection, setRendererSelection] = useState<RendererSelectionResult>();
   const scene = useMemo(() => SceneSerializer.fromWorldSpec(world), [world]);
 
   useEffect(() => {
@@ -36,36 +37,58 @@ export function Viewport3D({ world, selectedId, onSelectEntity, onWorldChange, o
       return;
     }
 
-    let renderer: Renderer;
-    try {
-      renderer = new WebGL2Renderer(canvas);
-      setRendererMode("webgl2");
-      setRendererError(undefined);
-    } catch (error) {
-      renderer = new Canvas2DRenderer(canvas);
-      setRendererMode("canvas2d");
-      setRendererError(error instanceof Error ? error.message : "WebGL2 unavailable.");
-    }
+    let renderer: Renderer | undefined;
+    let disposed = false;
+
+    RendererFactory.create({
+      canvas,
+      worldSpec: worldRef.current,
+      prefer: EDITOR_RENDERER_POLICY.prefer,
+      requiredFeatures: worldRef.current.requiredCapabilities.filter((capability): capability is RendererFeature => !capability.includes(":")),
+      allowExperimental: EDITOR_RENDERER_POLICY.allowExperimental,
+      fallbackMode: worldRef.current.allowRendererDegradation ? "degrade" : "fail",
+      diagnostics: true,
+    })
+      .then((selection) => {
+        if (disposed) {
+          selection.renderer.dispose();
+          return;
+        }
+        renderer = selection.renderer;
+        rendererRef.current = selection.renderer;
+        setRendererMode(selection.backend);
+        setRendererSelection(selection);
+        setRendererError(selection.degraded ? warningSummary(selection.degradationWarnings) : undefined);
+        resize();
+        startLoop(selection.renderer);
+      })
+      .catch((error) => {
+        setRendererError(error instanceof Error ? error.message : "No renderer available.");
+      });
 
     const resize = () => {
       const rect = shell.getBoundingClientRect();
-      renderer.resize(rect.width, rect.height);
+      renderer?.resize(rect.width, rect.height);
     };
     const observer = new ResizeObserver(resize);
     observer.observe(shell);
     resize();
 
     let frame = 0;
-    const loop = () => {
-      renderer.render(SceneSerializer.fromWorldSpec(worldRef.current), worldRef.current);
-      frame = requestAnimationFrame(loop);
+    const startLoop = (activeRenderer: Renderer) => {
+      const loop = () => {
+        activeRenderer.render(SceneSerializer.fromWorldSpec(worldRef.current), worldRef.current);
+        frame = requestAnimationFrame(loop);
+      };
+      loop();
     };
-    loop();
 
     return () => {
+      disposed = true;
       observer.disconnect();
       cancelAnimationFrame(frame);
-      renderer.dispose();
+      renderer?.dispose();
+      rendererRef.current = null;
     };
   }, []);
 
@@ -86,7 +109,7 @@ export function Viewport3D({ world, selectedId, onSelectEntity, onWorldChange, o
           aria-label="3D quest viewport"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
-            const entity = pickEntityAt(world, event.clientX - rect.left, event.clientY - rect.top, rect.width, rect.height);
+            const entity = rendererRef.current?.pick(event.clientX - rect.left, event.clientY - rect.top) ?? pickEntityAt(world, event.clientX - rect.left, event.clientY - rect.top, rect.width, rect.height);
             if (!entity) {
               return;
             }
@@ -103,12 +126,17 @@ export function Viewport3D({ world, selectedId, onSelectEntity, onWorldChange, o
         <div className="viewport-top-left">
           <span className="viewport-badge">
             <Cpu size={14} />
-            {rendererMode === "webgl2" ? "WebGL2 renderer" : "Canvas fallback"}
+            {rendererLabel(rendererMode)}
           </span>
           {rendererError ? (
             <span className="viewport-badge warning">
               <AlertTriangle size={14} />
               {rendererError}
+            </span>
+          ) : null}
+          {rendererSelection ? (
+            <span className="viewport-badge">
+              {rendererSelection.degraded ? "Fallback mode" : "Best quality"}
             </span>
           ) : null}
         </div>
@@ -136,4 +164,21 @@ export function Viewport3D({ world, selectedId, onSelectEntity, onWorldChange, o
       </div>
     </main>
   );
+}
+
+function rendererLabel(mode: RendererBackend) {
+  if (mode === "webgl2") {
+    return "WebGL2 renderer";
+  }
+  if (mode === "canvas2d") {
+    return "Canvas2D fallback";
+  }
+  if (mode === "static") {
+    return "Static fallback";
+  }
+  return "Experimental WebGPU";
+}
+
+function warningSummary(warnings: RendererCapabilityIssue[]) {
+  return warnings[0]?.message ?? "Renderer selected with degraded capabilities.";
 }

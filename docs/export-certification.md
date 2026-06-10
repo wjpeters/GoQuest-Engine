@@ -57,6 +57,16 @@ Waarschuwingen blokkeren niet. Hard failures blokkeren ZIP en single HTML downlo
 - `no_external_network_requests`: faalt op externe scripts, fonts, afbeeldingen, analytics of webhooks.
 - `works_without_webgpu`: controleert dat de runtime niet WebGPU-only is.
 
+### Renderer Policy
+
+- `renderer_capabilities_declared`: controleert of manifest en runtime contract rendererbeleid bevatten.
+- `required_renderer_features_supported`: controleert of WebGL2 of fallback vereiste rendererfeatures kan leveren.
+- `webgl2_available_in_runtime`: controleert dat WebGL2 de default export renderer is.
+- `canvas2d_fallback_available`: controleert dat Canvas2D fallback is inbegrepen.
+- `webgpu_not_required_for_export`: faalt als WebGPU vereist of default wordt voor customer exports.
+- `static_fallback_available`: controleert dat een niet-blanke static fallback bestaat.
+- `degradation_policy_valid`: controleert dat de fallbackpolicy klopt met de WorldSpec.
+
 ### Assets
 
 - `assets_present`: elk asset in de spec moet ingebed zijn of in de package zitten.
@@ -130,6 +140,9 @@ De suite bouwt alle starter templates met `ExportBuilder`, schrijft ze naar tijd
 - runtime readiness via `window.__AQE_RUNTIME_READY__`;
 - health diagnostics via `window.__AQE_EXPORT_HEALTH__`;
 - WebGL2 of Canvas2D renderer;
+- WebGPU wordt niet standaard geselecteerd;
+- `?renderer=canvas2d` bereikt ready state;
+- `?renderer=static` toont een nonblank fallback;
 - eerste render met zichtbaar canvas of runtime root;
 - geen console errors of uncaught page errors;
 - geen `/api/`, editor, SaaS, CDN, analytics of andere externe netwerkrequests;

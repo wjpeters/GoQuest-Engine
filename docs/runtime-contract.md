@@ -30,6 +30,7 @@ The current contract declares:
 - supported spec versions;
 - supported export format versions;
 - renderer capabilities;
+- renderer default/fallback policy;
 - geometry, asset, action, condition and interaction capabilities;
 - supported export modes;
 - diagnostics global names.
@@ -58,6 +59,7 @@ Required manifest metadata includes:
 - build id and creation time;
 - source template id when known;
 - runtime contract;
+- renderer policy and fallback modes;
 - compatibility result;
 - migration summary;
 - files with byte size, hash and role;

@@ -12,8 +12,14 @@ import { startStaticServer } from "./helpers/staticServer";
 type RuntimeHealth = {
   ready?: boolean;
   firstRenderMs?: number;
-  renderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
-  selectedRenderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
+  renderer?: {
+    selectedBackend?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none";
+    attemptedBackends?: Array<{ backend: string; available: boolean; reason?: string }>;
+    degraded?: boolean;
+    degradationWarnings?: unknown[];
+    capabilities?: unknown;
+  };
+  selectedRenderer?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none";
   runtimeVersion?: string;
   specVersion?: string;
   exportFormatVersion?: string;
@@ -28,6 +34,7 @@ type RuntimeHooks = {
   getEventCount: () => number;
   getState: () => unknown;
   clickFirstInteraction: () => { changed: boolean; message: string };
+  forceRenderer?: (backend: "webgl2" | "canvas2d" | "static") => boolean;
 };
 
 for (const template of templateSmokeMatrix) {
@@ -57,7 +64,8 @@ for (const template of templateSmokeMatrix) {
         const health = await getRuntimeHealth(page);
         expect(health).toBeTruthy();
         expect(health.ready).toBe(true);
-        expect(["webgl2", "canvas2d"]).toContain(health.renderer);
+        expect(["webgl2", "canvas2d"]).toContain(health.renderer?.selectedBackend);
+        expect(health.renderer?.selectedBackend).not.toBe("webgpu");
         expect(health.runtimeVersion).toBe(built.manifest.runtimeVersion);
         expect(health.specVersion).toBe(built.manifest.specVersion);
         expect(health.exportFormatVersion).toBe(built.manifest.exportFormatVersion);
@@ -150,6 +158,61 @@ test("mobile viewport export smoke: Cyber Risk Room", async ({ browser }) => {
   }
 });
 
+test("canvas2d renderer override reaches ready state without fatal errors", async ({ page }) => {
+  const built = await buildTemplateExport("cyber-risk-room");
+  const server = await startStaticServer(built.outDir);
+  const consoleErrors = collectConsoleErrors(page);
+  const pageErrors = collectPageErrors(page);
+  const networkGuard = attachNetworkGuard(page, server.origin);
+
+  try {
+    await page.goto(`${server.url}?renderer=canvas2d`, { waitUntil: "domcontentloaded" });
+    await waitForRuntimeReady(page);
+    const health = await getRuntimeHealth(page);
+
+    expect(health.ready).toBe(true);
+    expect(health.renderer?.selectedBackend).toBe("canvas2d");
+    expect(health.renderer?.degraded).toBe(true);
+    expect(health.compatible).toBe(true);
+    await expect(page.locator("canvas#quest")).toBeVisible();
+    expect(networkGuard.violations).toEqual([]);
+    expect(consoleErrors.messages).toEqual([]);
+    expect(pageErrors.messages).toEqual([]);
+  } finally {
+    networkGuard.dispose();
+    await server.close();
+    await built.cleanup();
+  }
+});
+
+test("static renderer override shows a nonblank fallback", async ({ page }) => {
+  const built = await buildTemplateExport("cyber-risk-room");
+  const server = await startStaticServer(built.outDir);
+  const consoleErrors = collectConsoleErrors(page);
+  const pageErrors = collectPageErrors(page);
+  const networkGuard = attachNetworkGuard(page, server.origin);
+
+  try {
+    await page.goto(`${server.url}?renderer=static`, { waitUntil: "domcontentloaded" });
+    await waitForRuntimeReady(page);
+    const health = await getRuntimeHealth(page);
+    const bodyText = await page.locator("body").innerText();
+
+    expect(health.ready).toBe(true);
+    expect(health.renderer?.selectedBackend).toBe("static");
+    expect(health.renderer?.degraded).toBe(true);
+    expect(bodyText).toContain("Standalone export");
+    await expect(page.locator("canvas#quest")).toBeVisible();
+    expect(networkGuard.violations).toEqual([]);
+    expect(consoleErrors.messages).toEqual([]);
+    expect(pageErrors.messages).toEqual([]);
+  } finally {
+    networkGuard.dispose();
+    await server.close();
+    await built.cleanup();
+  }
+});
+
 test("single HTML export runs from file:// without fetching quest JSON", async ({ page }) => {
   const built = await buildTemplateExport("cyber-risk-room");
   const singleHtml = join(built.outDir, "single.html");
@@ -173,6 +236,7 @@ test("single HTML export runs from file:// without fetching quest JSON", async (
     expect(health.specVersion).toBe(SPEC_VERSION);
     expect(health.exportFormatVersion).toBe(EXPORT_FORMAT_VERSION);
     expect(health.compatible).toBe(true);
+    expect(health.renderer?.selectedBackend).not.toBe("webgpu");
     expect(health.errors ?? []).toEqual([]);
     const contract = await getRuntimeContract(page);
     expect(contract.runtimeVersion).toBe(RUNTIME_VERSION);
@@ -204,6 +268,9 @@ function assertManifest(manifest: BundleManifest) {
   expect(manifest.exportFormatVersion).toBe(EXPORT_FORMAT_VERSION);
   expect(manifest.contract.runtimeVersion).toBe(RUNTIME_VERSION);
   expect(manifest.compatibility.status).toBe("compatible");
+  expect(manifest.rendererPolicy.defaultBackend).toBe("webgl2");
+  expect(manifest.rendererPolicy.allowExperimentalWebGPU).toBe(false);
+  expect(manifest.rendererPolicy.fallbackModesAvailable).toEqual(expect.arrayContaining(["canvas2d", "static"]));
   expect(manifest.standalone).toBe(true);
   expect(manifest.requiresNetwork).toBe(false);
   expect(manifest.capabilities.networkRequired).toBe(false);

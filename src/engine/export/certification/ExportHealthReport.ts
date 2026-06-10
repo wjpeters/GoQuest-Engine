@@ -68,7 +68,7 @@ export type CertifiedExportResult = {
 export type BrowserSmokeResult = {
   available: boolean;
   ready: boolean;
-  renderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
+  renderer?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none";
   firstRenderMs?: number;
   errors: string[];
   events: string[];

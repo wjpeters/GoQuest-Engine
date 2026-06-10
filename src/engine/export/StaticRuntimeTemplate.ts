@@ -50,7 +50,13 @@ export function renderRuntimeJs() {
   const diagnostics = {
     ready: false,
     firstRenderMs: undefined,
-    renderer: "none",
+    renderer: {
+      selectedBackend: "none",
+      attemptedBackends: [],
+      degraded: false,
+      degradationWarnings: [],
+      capabilities: undefined
+    },
     selectedRenderer: "none",
     runtimeVersion: runtimeContract.runtimeVersion,
     specVersion: "unknown",
@@ -65,10 +71,27 @@ export function renderRuntimeJs() {
   const recordError = (error) => diagnostics.errors.push(String(error && error.message ? error.message : error));
   addEventListener("error", (event) => recordError(event.message || "runtime error"));
   addEventListener("unhandledrejection", (event) => recordError(event.reason || "unhandled rejection"));
-  const markReady = (renderer) => {
+  const rendererFeatures = {
+    webgl2: { "3d.primitives": true, "3d.lighting.basic": true, "3d.picking": true, "materials.color": true, "materials.opacity": true, "camera.perspective": true },
+    canvas2d: { "2d.labels": true, "materials.color": true, "materials.opacity": true, "fallback.staticPreview": true },
+    static: { "2d.labels": true, "fallback.staticPreview": true }
+  };
+  const attemptRenderer = (backend, available, reason) => {
+    diagnostics.renderer.attemptedBackends.push({ backend, available, reason });
+  };
+  const markReady = (renderer, degraded = false, warnings = []) => {
     if (diagnostics.ready) return;
     diagnostics.ready = true;
-    diagnostics.renderer = renderer;
+    diagnostics.renderer.selectedBackend = renderer;
+    diagnostics.renderer.degraded = degraded;
+    diagnostics.renderer.degradationWarnings = warnings;
+    diagnostics.renderer.capabilities = {
+      backend: renderer,
+      available: true,
+      supported: true,
+      experimental: false,
+      features: rendererFeatures[renderer] || {}
+    };
     diagnostics.selectedRenderer = renderer;
     diagnostics.firstRenderMs = performance.now() - startedAt;
     window.__AQE_RUNTIME_READY__ = true;
@@ -85,6 +108,15 @@ export function renderRuntimeJs() {
   const toastTitle = document.getElementById("toast-title");
   const toastMessage = document.getElementById("toast-message");
   const state = { completed: false };
+  const queryRenderer = new URLSearchParams(location.search).get("renderer");
+  const rendererOverride = ["webgl2", "canvas2d", "static"].includes(queryRenderer) ? queryRenderer : undefined;
+  const exportRendererPolicy = {
+    defaultBackend: world.exportSettings?.defaultRenderer || "webgl2",
+    prefer: rendererOverride ? [rendererOverride] : ["webgl2", "canvas2d", "static"],
+    allowExperimentalWebGPU: false,
+    fallbackMode: world.allowRendererDegradation === false ? "fail" : "degrade"
+  };
+  let pickEntity = () => undefined;
   const hex = (value, opacity = 1) => {
     const normalized = String(value || "#ffffff").replace("#", "").padEnd(6, "0").slice(0, 6);
     const int = Number.parseInt(normalized, 16);
@@ -155,6 +187,11 @@ export function renderRuntimeJs() {
     });
     return applied;
   };
+  canvas.addEventListener("click", (ev) => {
+    const rect = canvas.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+    const entity = pickEntity(x, y);
+    if (entity) trigger("click", entity.id);
+  });
   window.__AQE_SMOKE_CLICK_FIRST__ = () => {
     const before = diagnostics.events.length;
     const interaction = world.interactions.find(i => i.trigger === "click" && i.targetEntityId);
@@ -178,12 +215,20 @@ export function renderRuntimeJs() {
       completed: state.completed,
       visibleEntityIds: world.entities.filter(e => e.visible).map(e => e.id)
     }),
-    clickFirstInteraction: () => window.__AQE_SMOKE_CLICK_FIRST__()
+    clickFirstInteraction: () => window.__AQE_SMOKE_CLICK_FIRST__(),
+    forceRenderer: (backend) => {
+      if (!["webgl2", "canvas2d", "static"].includes(backend)) return false;
+      const next = new URL(location.href);
+      next.searchParams.set("renderer", backend);
+      location.href = next.toString();
+      return true;
+    }
   };
-  const drawCanvas2d = () => {
+  const drawCanvas2d = (degraded = true) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       recordError("Canvas2D unavailable.");
+      drawStaticFallback();
       return;
     }
     const resize2d = () => {
@@ -207,15 +252,108 @@ export function renderRuntimeJs() {
         ctx.fillRect(innerWidth / 2 + p[0] * 70 - size / 2, innerHeight / 2 - p[1] * 70 - size / 2, size * s[0], size * s[1]);
       }
       ctx.globalAlpha = 1;
-      markReady("canvas2d");
+      markReady("canvas2d", degraded, degraded ? [{ code: "canvas2d_visual_degradation", severity: "warn", message: "Canvas2D renders a simplified scene." }] : []);
+    };
+    pickEntity = (x, y) => {
+      let best;
+      for (const e of world.entities) {
+        if (!e.visible || !e.selectable) continue;
+        const p = e.transform.position, s = e.transform.scale;
+        const size = Math.max(18, 56 / Math.max(1, p[2] + 5));
+        const ex = innerWidth / 2 + p[0] * 70;
+        const ey = innerHeight / 2 - p[1] * 70;
+        const hit = x >= ex - size / 2 && x <= ex - size / 2 + size * s[0] && y >= ey - size / 2 && y <= ey - size / 2 + size * s[1];
+        if (hit) best = e;
+      }
+      return best;
     };
     addEventListener("resize", resize2d);
     resize2d();
     trigger("sceneStart");
     frame2d();
   };
-  const gl = canvas.getContext("webgl2", { antialias: true, alpha: true });
-  if (!gl) { drawCanvas2d(); return; }
+  const drawStaticFallback = () => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      const fallback = document.createElement("section");
+      fallback.style.cssText = "position:fixed;inset:0;padding:24px;background:#080b14;color:#eef2ff;font-family:system-ui,sans-serif";
+      fallback.innerHTML = "<h1>" + world.title + "</h1><p>" + (world.description || "Interactive rendering is unavailable.") + "</p><p>Static fallback preview.</p>";
+      document.body.appendChild(fallback);
+      markReady("static", true, [{ code: "static_dom_fallback", severity: "warn", message: "Canvas unavailable; DOM static fallback shown." }]);
+      return;
+    }
+    const resizeStatic = () => {
+      const ratio = devicePixelRatio || 1;
+      canvas.width = Math.floor(innerWidth * ratio);
+      canvas.height = Math.floor(innerHeight * ratio);
+      canvas.style.width = innerWidth + "px";
+      canvas.style.height = innerHeight + "px";
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    };
+    const frameStatic = () => {
+      ctx.fillStyle = world.environment.background || "#080b14";
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+      ctx.fillStyle = "#eef2ff";
+      ctx.font = "700 22px Inter, system-ui, sans-serif";
+      ctx.fillText(world.title, 24, 44);
+      ctx.fillStyle = "#b8c0d8";
+      ctx.font = "13px Inter, system-ui, sans-serif";
+      ctx.fillText(world.description || "Interactive rendering is unavailable.", 24, 74);
+      ctx.fillStyle = "#facc15";
+      ctx.font = "700 13px Inter, system-ui, sans-serif";
+      ctx.fillText("Static fallback preview", 24, 116);
+      world.entities.filter(e => e.visible).slice(0, 8).forEach((e, index) => {
+        const y = 154 + index * 30;
+        ctx.fillStyle = "rgba(255,255,255,.08)";
+        ctx.fillRect(24, y - 18, Math.min(520, innerWidth - 48), 24);
+        ctx.fillStyle = e.material.color || "#8ab4ff";
+        ctx.fillRect(36, y - 10, 10, 10);
+        ctx.fillStyle = "#eef2ff";
+        ctx.font = "12px Inter, system-ui, sans-serif";
+        ctx.fillText(e.name + " (" + e.type + ")", 56, y);
+      });
+      markReady("static", true, [{ code: "static_renderer_selected", severity: "warn", message: "Interactive 3D rendering is unavailable." }]);
+    };
+    pickEntity = () => undefined;
+    addEventListener("resize", () => { resizeStatic(); frameStatic(); });
+    resizeStatic();
+    trigger("sceneStart");
+    frameStatic();
+  };
+  const RendererFactory = {
+    create: () => {
+      const prefer = exportRendererPolicy.prefer;
+      for (const backend of prefer) {
+        if (backend === "webgl2") {
+          const gl = canvas.getContext("webgl2", { antialias: true, alpha: true });
+          if (gl) {
+            attemptRenderer("webgl2", true, "WebGL2 context available.");
+            return { backend, gl };
+          }
+          attemptRenderer("webgl2", false, "WebGL2 context unavailable.");
+        }
+        if (backend === "canvas2d") {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            attemptRenderer("canvas2d", true, "Canvas2D context available.");
+            return { backend };
+          }
+          attemptRenderer("canvas2d", false, "Canvas2D context unavailable.");
+        }
+        if (backend === "static") {
+          attemptRenderer("static", true, "Static fallback is always available.");
+          return { backend };
+        }
+      }
+      attemptRenderer("static", true, "No preferred renderer was available; static fallback selected.");
+      return { backend: "static" };
+    }
+  };
+  const selectedRenderer = RendererFactory.create();
+  if (selectedRenderer.backend === "canvas2d") { drawCanvas2d(selectedRenderer.backend !== exportRendererPolicy.defaultBackend); return; }
+  if (selectedRenderer.backend === "static") { drawStaticFallback(); return; }
+  const gl = selectedRenderer.gl;
+  if (!gl) { drawCanvas2d(true); return; }
   const compile = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const program = gl.createProgram();
   gl.attachShader(program, compile(gl.VERTEX_SHADER, "#version 300 es\\nin vec3 aPosition;uniform mat4 uModel;uniform mat4 uViewProjection;void main(){gl_Position=uViewProjection*uModel*vec4(aPosition,1.0);}"));
@@ -247,12 +385,11 @@ export function renderRuntimeJs() {
     const p = e.transform.position, v = vp(), x = v[0]*p[0]+v[4]*p[1]+v[8]*p[2]+v[12], y = v[1]*p[0]+v[5]*p[1]+v[9]*p[2]+v[13], w = v[3]*p[0]+v[7]*p[1]+v[11]*p[2]+v[15];
     return { x: (x/w*.5+.5)*canvas.clientWidth, y: (-y/w*.5+.5)*canvas.clientHeight, r: Math.max(22, Math.max(...e.transform.scale)*92/w), w };
   };
-  canvas.addEventListener("click", (ev) => {
-    const rect = canvas.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  pickEntity = (x, y) => {
     let best;
     for (const e of world.entities) if (e.visible && e.selectable) { const p = project(e); if (Math.hypot(p.x-x,p.y-y) <= p.r && (!best || p.w < best.p.w)) best = { e, p }; }
-    if (best) trigger("click", best.e.id);
-  });
+    return best?.e;
+  };
   addEventListener("resize", resize); resize(); trigger("sceneStart"); draw();
 })();`;
 }

@@ -16,6 +16,7 @@ import { validateBundleSize } from "./checks/validateBundleSize";
 import { validateFileMode } from "./checks/validateFileMode";
 import { validateManifest } from "./checks/validateManifest";
 import { validateRuntimeCapabilities } from "./checks/validateRuntimeCapabilities";
+import { validateRendererPolicy } from "./checks/validateRendererPolicy";
 import { validateStaticHosting } from "./checks/validateStaticHosting";
 import { validateWorldSpec } from "./checks/validateWorldSpec";
 
@@ -42,6 +43,7 @@ export class CertificationRunner {
       this.validateSpecVersion(input.compatibility, input.world.specVersion),
       this.validateRequiredCapabilities(input.compatibility),
       this.validateMigration(input.migration),
+      ...validateRendererPolicy(input.world, input.manifest),
       inspectNoEditorImports(input.files),
       inspectNoApiCalls(input.files),
       inspectNoExternalNetwork(input.files),

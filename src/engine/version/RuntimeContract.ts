@@ -6,8 +6,9 @@ import {
   SUPPORTED_EXPORT_FORMAT_VERSIONS,
   SUPPORTED_SPEC_VERSIONS,
 } from "./EngineVersion";
+import { RENDERER_FEATURES } from "../render/Renderer";
 
-export const RENDERER_CAPABILITIES = ["webgl2", "canvas2d"] as const;
+export const RENDERER_CAPABILITIES = ["webgpu", "webgl2", "canvas2d", "static"] as const;
 export const GEOMETRY_CAPABILITIES = ["box", "sphere", "plane", "cylinder", "cone", "text", "hotspot", "imageBillboard"] as const;
 export const ASSET_CAPABILITIES = ["image", "audio", "data", "font"] as const;
 export const ACTION_CAPABILITIES = [
@@ -32,7 +33,7 @@ export const RuntimeContractSchema = z.object({
   supportedSpecVersions: z.array(z.string().min(1)).min(1),
   supportedExportFormatVersions: z.array(z.string().min(1)).min(1),
   capabilities: z.object({
-    renderers: z.array(z.enum(["webgl2", "canvas2d", "webgpu"])).min(1),
+    renderers: z.array(z.enum(["webgpu", "webgl2", "canvas2d", "static"])).min(1),
     geometry: z.array(z.string().min(1)).min(1),
     assets: z.array(z.string().min(1)),
     actions: z.array(z.string().min(1)).min(1),
@@ -41,6 +42,16 @@ export const RuntimeContractSchema = z.object({
     exportModes: z.array(z.enum(["single-html", "zip-static"])).min(1),
   }),
   featureFlags: z.record(z.boolean()).default({}),
+  rendererPolicy: z.object({
+    defaultBackend: z.enum(["webgpu", "webgl2", "canvas2d", "static"]),
+    exportPrefer: z.array(z.enum(["webgpu", "webgl2", "canvas2d", "static"])).min(1),
+    editorPrefer: z.array(z.enum(["webgpu", "webgl2", "canvas2d", "static"])).min(1),
+    webgpuExperimental: z.boolean(),
+    webgpuRequiredForExport: z.literal(false),
+    fallbackMode: z.enum(["fail", "degrade", "static"]),
+    fallbacks: z.array(z.enum(["canvas2d", "static"])).min(1),
+    featureSupport: z.record(z.record(z.boolean())),
+  }),
   diagnostics: z.object({
     version: z.string().min(1),
     globalReadyFlag: z.literal("__AQE_RUNTIME_READY__"),
@@ -72,6 +83,21 @@ export const CURRENT_RUNTIME_CONTRACT: RuntimeContract = RuntimeContractSchema.p
     staticExport: true,
     localDiagnostics: true,
   },
+  rendererPolicy: {
+    defaultBackend: "webgl2",
+    exportPrefer: ["webgl2", "canvas2d", "static"],
+    editorPrefer: ["webgpu", "webgl2", "canvas2d", "static"],
+    webgpuExperimental: true,
+    webgpuRequiredForExport: false,
+    fallbackMode: "degrade",
+    fallbacks: ["canvas2d", "static"],
+    featureSupport: {
+      webgpu: featureRecord(["3d.primitives", "materials.color", "materials.opacity", "camera.perspective"]),
+      webgl2: featureRecord(["3d.primitives", "3d.lighting.basic", "3d.picking", "materials.color", "materials.opacity", "camera.perspective"]),
+      canvas2d: featureRecord(["2d.labels", "materials.color", "materials.opacity", "fallback.staticPreview"]),
+      static: featureRecord(["2d.labels", "fallback.staticPreview"]),
+    },
+  },
   diagnostics: {
     version: "1.0.0",
     globalReadyFlag: "__AQE_RUNTIME_READY__",
@@ -86,7 +112,17 @@ export function validateRuntimeContract(input: unknown) {
 }
 
 export function getRequiredCapabilitySet(contract: RuntimeContract = CURRENT_RUNTIME_CONTRACT) {
+  const rendererFeatures = new Set<string>();
+  Object.values(contract.rendererPolicy.featureSupport).forEach((features) => {
+    Object.entries(features).forEach(([feature, supported]) => {
+      if (supported) {
+        rendererFeatures.add(feature);
+      }
+    });
+  });
+
   return new Set([
+    ...rendererFeatures,
     ...contract.capabilities.renderers.map((value) => `renderer:${value}`),
     ...contract.capabilities.geometry.map((value) => `geometry:${value}`),
     ...contract.capabilities.assets.map((value) => `asset:${value}`),
@@ -98,3 +134,7 @@ export function getRequiredCapabilitySet(contract: RuntimeContract = CURRENT_RUN
 }
 
 export { EXPORT_FORMAT_VERSION };
+
+function featureRecord(enabled: Array<(typeof RENDERER_FEATURES)[number]>) {
+  return Object.fromEntries(RENDERER_FEATURES.map((feature) => [feature, enabled.includes(feature)]));
+}

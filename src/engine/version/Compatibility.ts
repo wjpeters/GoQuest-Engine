@@ -50,6 +50,19 @@ export function checkRuntimeCompatibility(world: WorldSpec, runtimeContract: Run
     });
   }
 
+  if ((world.requiredCapabilities ?? []).includes("renderer:webgpu") || (world.preferredRenderer === "webgpu" && world.allowRendererDegradation === false)) {
+    issues.push({
+      code: "webgpu_required_for_export",
+      severity: "error",
+      message: "WebGPU cannot be required for customer exports in V1. Use WebGL2 with Canvas2D/static fallback.",
+      details: {
+        preferredRenderer: world.preferredRenderer,
+        allowRendererDegradation: world.allowRendererDegradation,
+        requiredCapabilities: world.requiredCapabilities,
+      },
+    });
+  }
+
   addMissingCapabilityIssues(issues, world.requiredCapabilities ?? [], runtimeContract);
   addUnsupportedUsedValues(issues, "geometry", world.entities.map((entity) => entity.type), runtimeContract.capabilities.geometry);
   addUnsupportedUsedValues(issues, "asset", world.assets.map((asset) => asset.type), runtimeContract.capabilities.assets);

@@ -9,6 +9,7 @@ import { checkManifestCompatibility, checkRuntimeCompatibility } from "../versio
 import { ENGINE_NAME, ENGINE_VERSION, EXPORT_FORMAT_VERSION, RUNTIME_VERSION } from "../version/EngineVersion";
 import { CURRENT_RUNTIME_CONTRACT, getRequiredCapabilitySet } from "../version/RuntimeContract";
 import { migrateWorldSpec, type MigrationResult } from "../version/migrations";
+import { EXPORT_RENDERER_POLICY } from "../render/RendererFactory";
 
 export type StaticExportFiles = {
   "index.html": string;
@@ -150,13 +151,27 @@ export class ExportBuilder {
       },
       files: manifestFiles,
       capabilities: {
-        renderers: ["webgl2", "canvas2d"],
+        renderers: ["webgl2", "canvas2d", "static"],
         fileMode: true,
         staticServer: true,
         embeddedQuestSpec: true,
         networkRequired: false,
       },
       capabilityIds: [...getRequiredCapabilitySet(CURRENT_RUNTIME_CONTRACT)],
+      requiredCapabilities: world.requiredCapabilities,
+      rendererPolicy: {
+        defaultBackend: world.exportSettings.defaultRenderer,
+        prefer: rendererPreferForWorld(world),
+        allowExperimentalWebGPU: false,
+        fallbackMode: world.allowRendererDegradation ? "degrade" : "fail",
+        includeCanvas2DFallback: world.exportSettings.includeCanvas2DFallback,
+        includeStaticFallback: world.exportSettings.includeStaticFallback,
+        selectedDefaultRenderer: world.exportSettings.defaultRenderer,
+        fallbackModesAvailable: [
+          ...(world.exportSettings.includeCanvas2DFallback ? (["canvas2d"] as const) : []),
+          ...(world.exportSettings.includeStaticFallback ? (["static"] as const) : []),
+        ],
+      },
       assets: world.assets.map((asset) => ({
         id: asset.id,
         name: asset.name,
@@ -170,6 +185,17 @@ export class ExportBuilder {
       requiresNetwork: false,
     };
   }
+}
+
+function rendererPreferForWorld(world: WorldSpec): Array<"webgl2" | "canvas2d" | "static"> {
+  const prefer: Array<"webgl2" | "canvas2d" | "static"> = [world.exportSettings.defaultRenderer];
+  if (world.exportSettings.includeCanvas2DFallback && !prefer.includes("canvas2d")) {
+    prefer.push("canvas2d");
+  }
+  if (world.exportSettings.includeStaticFallback && !prefer.includes("static")) {
+    prefer.push("static");
+  }
+  return prefer.length > 0 ? prefer : [...EXPORT_RENDERER_POLICY.prefer.filter((backend) => backend !== "webgpu")];
 }
 
 function fileRole(path: string): ExportFileRole {

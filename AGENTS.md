@@ -93,6 +93,7 @@ Bij wijzigingen aan export:
 - Laat downloads via de Export Certification Layer lopen.
 - Gebruik centrale constants uit `src/engine/version/EngineVersion.ts`; voeg geen losse version strings toe.
 - Houd `RuntimeContract`, `ExportManifest`, compatibility checks en migraties synchroon.
+- Gebruik `RendererFactory` voor rendererselectie; WebGL2 blijft export-default, WebGPU blijft experimenteel, Canvas2D/static fallback blijven beschikbaar.
 - Update of voeg checks toe in `src/engine/export/certification/` als nieuwe runtime- of packagingrisico's ontstaan.
 - Controleer dat `index.html` de quest spec embedt of anders nog steeds via `file://` werkt.
 - Controleer dat `runtime.js` niet naar editor routes, SaaS hosts of externe APIs verwijst.

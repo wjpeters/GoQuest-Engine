@@ -66,6 +66,8 @@ export const WorldSpecSchema = z.object({
   lastEditedWithEngineVersion: z.string().default(ENGINE_VERSION),
   requiredRuntimeVersion: z.string().default(RUNTIME_VERSION),
   requiredCapabilities: z.array(z.string().min(1)).default([]),
+  preferredRenderer: z.enum(["webgpu", "webgl2", "canvas2d", "static"]).default("webgl2"),
+  allowRendererDegradation: z.boolean().default(true),
   metadata: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
   viewport: z.object({
     width: z.number().min(320).default(1280),
@@ -93,6 +95,10 @@ export const WorldSpecSchema = z.object({
     packageName: z.string().min(1).default("quest-export"),
     includeSourceSpec: z.boolean().default(true),
     minifyRuntime: z.boolean().default(false),
+    defaultRenderer: z.enum(["webgl2", "canvas2d", "static"]).default("webgl2"),
+    includeCanvas2DFallback: z.boolean().default(true),
+    includeStaticFallback: z.boolean().default(true),
+    allowExperimentalWebGPU: z.boolean().default(false),
   }),
 });
 

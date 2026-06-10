@@ -34,13 +34,24 @@ export const ExportManifestSchema = z.object({
     warnings: z.array(z.string()),
   }),
   capabilities: z.object({
-    renderers: z.array(z.enum(["webgl2", "canvas2d", "webgpu"])).min(1),
+    renderers: z.array(z.enum(["webgpu", "webgl2", "canvas2d", "static"])).min(1),
     fileMode: z.boolean(),
     staticServer: z.boolean(),
     embeddedQuestSpec: z.boolean(),
     networkRequired: z.literal(false),
   }),
   capabilityIds: z.array(z.string().min(1)),
+  requiredCapabilities: z.array(z.string().min(1)),
+  rendererPolicy: z.object({
+    defaultBackend: z.enum(["webgl2", "canvas2d", "static"]),
+    prefer: z.array(z.enum(["webgl2", "canvas2d", "static"])).min(1),
+    allowExperimentalWebGPU: z.literal(false),
+    fallbackMode: z.enum(["fail", "degrade", "static"]),
+    includeCanvas2DFallback: z.boolean(),
+    includeStaticFallback: z.boolean(),
+    selectedDefaultRenderer: z.enum(["webgl2", "canvas2d", "static"]),
+    fallbackModesAvailable: z.array(z.enum(["canvas2d", "static"])),
+  }),
   files: z.array(
     z.object({
       path: z.string().min(1),

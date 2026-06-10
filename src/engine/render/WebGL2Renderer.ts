@@ -1,11 +1,12 @@
-import type { Renderer } from "./Renderer";
+import { emptyFeatureMatrix, type FrameState, type Renderer, type RendererCapabilities, type RendererDiagnostics } from "./Renderer";
 import type { Scene } from "../scene/Scene";
-import type { WorldSpec } from "../quest/WorldSpec";
+import type { EntitySpec, WorldSpec } from "../quest/WorldSpec";
 import { ShaderProgram } from "./ShaderProgram";
 import { createViewProjection } from "./Camera";
 import { geometryForEntity, gridGeometry } from "./Geometry";
 import type { MeshData } from "./Mesh";
 import { hexToRgba } from "./Material";
+import { pickEntityAt } from "../input/Picking";
 
 interface GpuMesh {
   vertex: WebGLBuffer;
@@ -39,6 +40,9 @@ export class WebGL2Renderer implements Renderer {
   private modelLocation: WebGLUniformLocation | null;
   private viewProjectionLocation: WebGLUniformLocation | null;
   private colorLocation: WebGLUniformLocation | null;
+  private world?: WorldSpec;
+  private capabilities: RendererCapabilities;
+  private diagnostics: RendererDiagnostics;
 
   constructor(private canvas: HTMLCanvasElement) {
     const gl = canvas.getContext("webgl2", { antialias: true, alpha: true });
@@ -54,10 +58,40 @@ export class WebGL2Renderer implements Renderer {
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    this.capabilities = {
+      backend: "webgl2",
+      supported: true,
+      experimental: false,
+      available: true,
+      features: {
+        ...emptyFeatureMatrix(false),
+        "3d.primitives": true,
+        "3d.lighting.basic": true,
+        "3d.picking": true,
+        "materials.color": true,
+        "materials.opacity": true,
+        "camera.perspective": true,
+      },
+      limits: {
+        maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
+        maxVertexUniforms: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) as number,
+        maxEntitiesRecommended: 250,
+      },
+    };
+    this.diagnostics = {
+      selectedBackend: "webgl2",
+      attemptedBackends: [{ backend: "webgl2", available: true }],
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      isSecureContext: typeof window !== "undefined" ? window.isSecureContext : undefined,
+    };
   }
 
-  resize(width: number, height: number) {
-    const ratio = Math.max(1, window.devicePixelRatio || 1);
+  init() {
+    // WebGL resources are initialized in the constructor for the current MVP renderer.
+  }
+
+  resize(width: number, height: number, dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1) {
+    const ratio = Math.max(1, dpr || 1);
     const canvasWidth = Math.floor(width * ratio);
     const canvasHeight = Math.floor(height * ratio);
     if (this.canvas.width !== canvasWidth || this.canvas.height !== canvasHeight) {
@@ -69,7 +103,18 @@ export class WebGL2Renderer implements Renderer {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  render(scene: Scene, world: WorldSpec) {
+  loadWorld(worldSpec: WorldSpec) {
+    this.world = worldSpec;
+  }
+
+  render(sceneOrFrameState?: Scene | FrameState, maybeWorld?: WorldSpec) {
+    const frameState = isFrameState(sceneOrFrameState) ? sceneOrFrameState : undefined;
+    const scene = frameState?.scene ?? (isScene(sceneOrFrameState) ? sceneOrFrameState : undefined);
+    const world = frameState?.world ?? maybeWorld ?? this.world;
+    if (!scene || !world) {
+      return;
+    }
+    this.world = world;
     const gl = this.gl;
     const [r, g, b] = hexToRgba(world.environment.background);
     gl.clearColor(r, g, b, 1);
@@ -108,6 +153,21 @@ export class WebGL2Renderer implements Renderer {
     this.meshCache.clear();
   }
 
+  pick(screenX: number, screenY: number): EntitySpec | null {
+    if (!this.world) {
+      return null;
+    }
+    return pickEntityAt(this.world, screenX, screenY, this.canvas.clientWidth, this.canvas.clientHeight) ?? null;
+  }
+
+  getCapabilities() {
+    return this.capabilities;
+  }
+
+  getDiagnostics() {
+    return this.diagnostics;
+  }
+
   private cacheMesh(key: string, data: MeshData) {
     const mesh = this.createGpuMesh(data);
     this.meshCache.set(key, mesh);
@@ -134,4 +194,12 @@ export class WebGL2Renderer implements Renderer {
     this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, mesh.index);
     this.gl.drawElements(mode, mesh.indexCount, this.gl.UNSIGNED_SHORT, 0);
   }
+}
+
+function isFrameState(value: unknown): value is FrameState {
+  return value !== null && typeof value === "object" && "world" in value;
+}
+
+function isScene(value: unknown): value is Scene {
+  return value !== null && typeof value === "object" && "all" in value && typeof (value as Scene).all === "function";
 }

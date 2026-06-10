@@ -20,6 +20,13 @@ const checkGroups: Array<{ title: string; ids: string[] }> = [
       "spec_version_supported",
       "required_capabilities_supported",
       "migration_status",
+      "renderer_capabilities_declared",
+      "required_renderer_features_supported",
+      "webgl2_available_in_runtime",
+      "canvas2d_fallback_available",
+      "webgpu_not_required_for_export",
+      "static_fallback_available",
+      "degradation_policy_valid",
     ],
   },
   { title: "Runtime independence", ids: ["no_editor_imports", "no_api_calls", "no_external_network_requests", "works_without_webgpu"] },
@@ -169,6 +176,10 @@ export function ExportDialog({ world, onClose }: ExportDialogProps) {
               <ContractFact label="Export format" value={certified.healthReport.exportFormatVersion} />
               <ContractFact label="Compatibility" value={compatibilityLabel(certified.healthReport.compatibility.status)} />
               <ContractFact label="Migrations" value={migrationLabel(certified.healthReport.migrationsApplied, certified.healthReport.migrationWarnings)} />
+              <ContractFact label="Best quality" value={rendererPolicyLabel(certified.package.manifest.rendererPolicy.defaultBackend)} />
+              <ContractFact label="Fallback mode" value={fallbackPolicyLabel(certified.package.manifest.rendererPolicy)} />
+              <ContractFact label="Experimental WebGPU" value={certified.package.manifest.rendererPolicy.allowExperimentalWebGPU ? "Allowed" : "Off for reliable exports"} />
+              <ContractFact label="Reliable web export" value={certified.package.manifest.rendererPolicy.includeCanvas2DFallback ? "Canvas2D fallback on" : "Canvas2D fallback off"} />
               <ContractFact label="Required capabilities" value={requiredCapabilitiesLabel(certified.package.migration.migratedSpec.requiredCapabilities)} wide />
               <ContractFact label="Portability" value={certified.canDownload ? "Standalone, static and future-readable" : "Blocked until contract issues are fixed"} wide />
             </section>
@@ -329,6 +340,21 @@ function requiredCapabilitiesLabel(capabilities: string[]) {
   return capabilities.length > 0 ? capabilities.join(", ") : "None";
 }
 
+function rendererPolicyLabel(backend: string) {
+  if (backend === "webgl2") {
+    return "WebGL2";
+  }
+  if (backend === "canvas2d") {
+    return "Canvas2D";
+  }
+  return "Static";
+}
+
+function fallbackPolicyLabel(policy: CertifiedExportResult["package"]["manifest"]["rendererPolicy"]) {
+  const fallbacks = policy.fallbackModesAvailable.length > 0 ? policy.fallbackModesAvailable.join(", ") : "none";
+  return `${policy.fallbackMode}; ${fallbacks}`;
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -375,7 +401,7 @@ async function runIframeSmokeTest(singleHtml: string): Promise<BrowserSmokeResul
     return {
       available: true,
       ready: Boolean(latest.ready),
-      renderer: latest.renderer,
+      renderer: latest.selectedRenderer ?? latest.renderer?.selectedBackend,
       firstRenderMs: latest.firstRenderMs,
       errors: latest.errors ?? [],
       events,
@@ -425,7 +451,8 @@ async function waitForRuntimeHealth(iframe: HTMLIFrameElement) {
 function getRuntimeHealth(iframe: HTMLIFrameElement): {
   ready: boolean;
   firstRenderMs?: number;
-  renderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
+  renderer?: { selectedBackend?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none" };
+  selectedRenderer?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none";
   errors?: string[];
   events?: string[];
 } {
@@ -433,7 +460,8 @@ function getRuntimeHealth(iframe: HTMLIFrameElement): {
     __AQE_EXPORT_HEALTH__?: {
       ready?: boolean;
       firstRenderMs?: number;
-      renderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
+      renderer?: { selectedBackend?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none" };
+      selectedRenderer?: "webgl2" | "canvas2d" | "webgpu" | "static" | "none";
       errors?: string[];
       events?: string[];
     };
@@ -442,6 +470,7 @@ function getRuntimeHealth(iframe: HTMLIFrameElement): {
     ready: Boolean(frameWindow.__AQE_EXPORT_HEALTH__?.ready),
     firstRenderMs: frameWindow.__AQE_EXPORT_HEALTH__?.firstRenderMs,
     renderer: frameWindow.__AQE_EXPORT_HEALTH__?.renderer,
+    selectedRenderer: frameWindow.__AQE_EXPORT_HEALTH__?.selectedRenderer,
     errors: frameWindow.__AQE_EXPORT_HEALTH__?.errors,
     events: frameWindow.__AQE_EXPORT_HEALTH__?.events,
   };

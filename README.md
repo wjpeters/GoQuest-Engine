@@ -181,6 +181,8 @@ Elke export loopt door de Export Certification Layer voordat download wordt toeg
 
 Het runtime/export contract is expliciet versieerbaar. `WorldSpec`, `QuestSpec`, standalone runtime, manifest en certification gebruiken centrale constants uit `src/engine/version/EngineVersion.ts`. De export bevat een gevalideerd runtimecontract, compatibility result en migratiehistorie zodat toekomstige editor-versies oude project specs betrouwbaar kunnen begrijpen. Zie [docs/runtime-contract.md](docs/runtime-contract.md).
 
+Rendererselectie loopt via een capability-systeem. WebGL2 is de standaard voor betrouwbare exports, WebGPU is experimenteel en uit voor customer exports, en Canvas2D/static fallbacks voorkomen blanke pagina's. Zie [docs/renderer-capabilities.md](docs/renderer-capabilities.md).
+
 Extra export smoke-tests kunnen lokaal worden gedraaid met:
 
 ```bash
