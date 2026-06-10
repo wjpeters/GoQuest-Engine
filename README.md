@@ -1,8 +1,30 @@
 # AI Quest Engine 3D Lite
 
-Browser-based editor en standalone runtime export voor lichte 2D/3D interactieve quests.
+Browser-based editor en standalone runtime export voor AI-ondersteunde 2D, 2.5D en 3D mini games, mini apps en quests.
 
-Dit project is een eerste werkende MVP voor een inhouse SaaS-editor waarmee creators schema-gedreven quest-werelden kunnen bouwen, previewen en exporteren. De export is bedoeld als volledig statisch browserpakket dat los van de editor draait.
+Dit project is een eerste werkende MVP voor een inhouse SaaS-editor waarmee creators schema-gedreven scenes, assets, logica en quest-werelden kunnen bouwen, previewen en exporteren. De export is bedoeld als volledig statisch browserpakket dat los van de editor draait.
+
+## Productvisie
+
+AI Quest Engine 3D Lite moet uitgroeien tot een volwassen game/app engine voor kleine, direct uitvoerbare ervaringen op het web. De gebruiker moet AI kunnen inzetten als co-creator om sneller 2D, 2.5D en 3D mini games, mini apps en quests te maken:
+
+- AI helpt scenes, layouts en werelden opzetten.
+- AI helpt assets, entity specs, materials en interacties voorstellen.
+- AI helpt questlogica, conditions, actions, scoring en flows samenstellen.
+- AI helpt content personaliseren voor doelgroep, context of intentie.
+- AI helpt fouten in specs repareren en ontbrekende details aanvullen.
+
+Het internet verschuift van een linkennetwerk naar een actienetwerk. Gebruikers typen minder losse zoekwoorden, klikken minder vaak door naar websites en verwachten vaker dat AI hun intentie begrijpt en direct iets uitvoert: plannen, berekenen, vergelijken, personaliseren, visualiseren, boeken, kopen of spelen.
+
+Daarom moet deze editor inspelen op:
+
+- Van trefwoorden naar intentie.
+- Van links naar antwoorden, mini-apps en acties.
+- Van SEO naar optimalisatie voor AI-systemen.
+- Minder klikken naar websites.
+- Meer belang voor autoriteit, originaliteit, betrouwbaarheid en directe uitvoerbaarheid.
+
+De engine moet uiteindelijk niet alleen quests maken, maar compacte, betrouwbare en zelfstandig draaiende interactieve webervaringen die AI-systemen kunnen begrijpen, aanbevelen en helpen produceren.
 
 ## Productmodel
 
@@ -11,6 +33,7 @@ Er zijn twee lagen:
 1. **Editor App**
    - React/Vite webapp voor authoring, preview, validatie en export.
    - Mag later SaaS-services, AI, auth en cloud storage gebruiken.
+   - AI ondersteunt authoring van scenes, assets, interacties, flows en logica.
    - AI-output hoort JSON-only te zijn en wordt gevalideerd voor gebruik.
 
 2. **Export Runtime**
@@ -89,6 +112,7 @@ src/
 
 - Premium donkere SaaS-layout met toolbar, linker sidebar, centrale viewport en rechter inspector.
 - WebGL2 scene preview met primitieve 3D entity types.
+- Basis voor 2D, 2.5D en 3D authoring binnen dezelfde schema-gedreven engine.
 - Scene hierarchy met visibility toggles.
 - Inspector voor transform, materiaal, visibility, selectability en labels.
 - Quest flow panel met interactions, triggers, conditions en actions.
@@ -117,7 +141,7 @@ Een `WorldSpec` bevat onder andere:
 - assets
 - export settings
 
-AI of editor tooling mag alleen gevalideerde JSON specs produceren. AI mag geen uitvoerbare JavaScript genereren.
+AI of editor tooling mag alleen gevalideerde JSON specs produceren. AI mag geen uitvoerbare JavaScript genereren. Dit houdt AI krachtig voor authoring, maar veilig en voorspelbaar voor runtime export.
 
 ## Renderer
 

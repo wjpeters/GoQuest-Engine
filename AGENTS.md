@@ -4,7 +4,19 @@ Richtlijnen voor coding agents die aan dit project werken.
 
 ## Projectdoel
 
-AI Quest Engine 3D Lite is een browser-based editor plus standalone runtime export voor lichte interactieve 2D/3D quests.
+AI Quest Engine 3D Lite is een browser-based editor plus standalone runtime export voor AI-ondersteunde 2D, 2.5D en 3D mini games, mini apps en quests.
+
+De lange termijn is een volwassen game/app engine waarmee gebruikers met hulp van AI compacte, direct uitvoerbare interactieve webervaringen kunnen maken. AI moet creators helpen met scenes, assets, entity specs, materials, interacties, questlogica, flows, scoring en personalisatie.
+
+De productvisie reageert op een bredere verschuiving op het web:
+
+- Van trefwoorden naar intentie.
+- Van links naar antwoorden, mini-apps en acties.
+- Van SEO naar optimalisatie voor AI-systemen.
+- Minder klikken naar websites.
+- Meer belang voor autoriteit, originaliteit, betrouwbaarheid en directe uitvoerbaarheid.
+
+Ontwerp en implementatie moeten dus niet alleen aan een klassieke editor denken, maar aan een engine die AI-systemen en eindgebruikers helpt intentie om te zetten in werkende mini games, mini apps en quests.
 
 De belangrijkste invariant:
 
@@ -38,6 +50,7 @@ De editor mag:
 - React state gebruiken.
 - UI helpers en SaaS features bevatten.
 - Later AI, auth, cloud storage of backend calls krijgen.
+- AI-assisted authoring ondersteunen voor scenes, assets, logic, quest flows en spec repair.
 
 De editor mag niet:
 
@@ -90,6 +103,12 @@ Voor nieuwe quest/world features:
 
 Voorkom ad-hoc objectvelden die niet door Zod gevalideerd worden.
 
+Voor AI-assisted features geldt extra:
+
+- AI mag alleen data voorstellen die in het schema past.
+- Voeg nieuwe capabilities eerst toe aan de schema's voordat prompts, UI of runtime erop vertrouwen.
+- Denk aan 2D, 2.5D en 3D als gelijkwaardige outputdoelen, niet alleen aan 3D scenes.
+
 ## UI Richtlijnen
 
 - Houd de editor modern, premium en functioneel.
@@ -122,6 +141,9 @@ Regels:
 - Parse en valideer met `WorldSpecSchema`.
 - Gebruik `RepairSpec.ts` of vergelijkbare validatie/repair flow.
 - Geen AI-generated JavaScript uitvoeren of exporteren.
+- AI mag helpen bij scenes, assets, material keuzes, interacties, conditions, actions, quest flows en scoring.
+- AI mag uitleg, suggesties en gevalideerde specs geven, maar runtimegedrag blijft deterministic en schema-gedreven.
+- AI-features moeten de export onafhankelijk houden van API keys, SaaS calls en netwerktoegang.
 
 ## Verificatie
 
