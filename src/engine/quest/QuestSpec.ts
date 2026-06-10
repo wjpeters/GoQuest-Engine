@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ActionSchema } from "./Actions";
 import { ConditionSchema } from "./Conditions";
+import { SPEC_VERSION } from "../version/EngineVersion";
 
 export const QuestStageSchema = z.object({
   id: z.string().min(1),
@@ -22,6 +23,7 @@ export const QuestOutcomeSchema = z.object({
 });
 
 export const QuestSpecSchema = z.object({
+  specVersion: z.string().default(SPEC_VERSION),
   variables: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
   score: z.number().default(0),
   stages: z.array(QuestStageSchema).min(1),

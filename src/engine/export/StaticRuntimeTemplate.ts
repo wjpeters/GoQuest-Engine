@@ -1,4 +1,6 @@
 import type { WorldSpec } from "../quest/WorldSpec";
+import { EXPORT_FORMAT_VERSION } from "../version/EngineVersion";
+import { CURRENT_RUNTIME_CONTRACT } from "../version/RuntimeContract";
 
 export function renderIndexHtml(world: WorldSpec) {
   const spec = JSON.stringify(world).replace(/</g, "\\u003c");
@@ -40,12 +42,21 @@ export function renderSingleHtml(world: WorldSpec) {
 }
 
 export function renderRuntimeJs() {
+  const contract = JSON.stringify(CURRENT_RUNTIME_CONTRACT).replace(/</g, "\\u003c");
   return `(() => {
+  const runtimeContract = ${contract};
+  window.__AQE_RUNTIME_CONTRACT__ = runtimeContract;
   const startedAt = performance.now();
   const diagnostics = {
     ready: false,
     firstRenderMs: undefined,
     renderer: "none",
+    selectedRenderer: "none",
+    runtimeVersion: runtimeContract.runtimeVersion,
+    specVersion: "unknown",
+    exportFormatVersion: "${EXPORT_FORMAT_VERSION}",
+    compatible: false,
+    compatibilityIssues: [],
     errors: [],
     events: []
   };
@@ -58,11 +69,17 @@ export function renderRuntimeJs() {
     if (diagnostics.ready) return;
     diagnostics.ready = true;
     diagnostics.renderer = renderer;
+    diagnostics.selectedRenderer = renderer;
     diagnostics.firstRenderMs = performance.now() - startedAt;
     window.__AQE_RUNTIME_READY__ = true;
   };
   const specNode = document.getElementById("quest-spec");
   const world = JSON.parse(specNode.textContent);
+  diagnostics.specVersion = world.specVersion || world.version || "0.0.0";
+  diagnostics.compatibilityIssues = runtimeContract.supportedSpecVersions.includes(diagnostics.specVersion)
+    ? []
+    : [{ code: "runtime_spec_version_unsupported", severity: "error", message: "Runtime does not support this WorldSpec version.", details: { specVersion: diagnostics.specVersion, supportedSpecVersions: runtimeContract.supportedSpecVersions } }];
+  diagnostics.compatible = diagnostics.compatibilityIssues.length === 0;
   const canvas = document.getElementById("quest");
   const toast = document.getElementById("toast");
   const toastTitle = document.getElementById("toast-title");

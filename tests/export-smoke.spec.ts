@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
 import type { BundleManifest } from "../src/engine/export/BundleManifest";
+import { ENGINE_NAME, ENGINE_VERSION, EXPORT_FORMAT_VERSION, RUNTIME_VERSION, SPEC_VERSION } from "../src/engine/version/EngineVersion";
+import type { RuntimeContract } from "../src/engine/version/RuntimeContract";
 import { attachNetworkGuard } from "./helpers/networkGuards";
 import { buildTemplateExport, templateSmokeMatrix, type BuiltTemplateExport } from "./helpers/buildTemplateExport";
 import { startStaticServer } from "./helpers/staticServer";
@@ -11,6 +13,12 @@ type RuntimeHealth = {
   ready?: boolean;
   firstRenderMs?: number;
   renderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
+  selectedRenderer?: "webgl2" | "canvas2d" | "webgpu" | "none";
+  runtimeVersion?: string;
+  specVersion?: string;
+  exportFormatVersion?: string;
+  compatible?: boolean;
+  compatibilityIssues?: unknown[];
   errors?: string[];
   events?: string[];
 };
@@ -50,8 +58,18 @@ for (const template of templateSmokeMatrix) {
         expect(health).toBeTruthy();
         expect(health.ready).toBe(true);
         expect(["webgl2", "canvas2d"]).toContain(health.renderer);
+        expect(health.runtimeVersion).toBe(built.manifest.runtimeVersion);
+        expect(health.specVersion).toBe(built.manifest.specVersion);
+        expect(health.exportFormatVersion).toBe(built.manifest.exportFormatVersion);
+        expect(health.compatible).toBe(true);
+        expect(health.compatibilityIssues ?? []).toEqual([]);
         expect(typeof health.firstRenderMs).toBe("number");
         expect(health.firstRenderMs).toBeGreaterThanOrEqual(0);
+
+        const contract = await getRuntimeContract(page);
+        expect(contract.engine).toBe(built.manifest.engine);
+        expect(contract.runtimeVersion).toBe(built.manifest.runtimeVersion);
+        expect(contract.supportedSpecVersions).toContain(built.manifest.specVersion);
 
         await expect(page.locator("canvas#quest")).toBeVisible();
         const bodyText = await page.locator("body").innerText();
@@ -151,7 +169,13 @@ test("single HTML export runs from file:// without fetching quest JSON", async (
     await waitForRuntimeReady(page);
     const health = await getRuntimeHealth(page);
     expect(health.ready).toBe(true);
+    expect(health.runtimeVersion).toBe(built.manifest.runtimeVersion);
+    expect(health.specVersion).toBe(SPEC_VERSION);
+    expect(health.exportFormatVersion).toBe(EXPORT_FORMAT_VERSION);
+    expect(health.compatible).toBe(true);
     expect(health.errors ?? []).toEqual([]);
+    const contract = await getRuntimeContract(page);
+    expect(contract.runtimeVersion).toBe(RUNTIME_VERSION);
     expect(networkGuard.violations.filter((url) => url.includes("quest-spec.json"))).toEqual([]);
     expect(consoleErrors.messages).toEqual([]);
     expect(pageErrors.messages).toEqual([]);
@@ -172,10 +196,14 @@ function assertRequiredFiles(built: BuiltTemplateExport) {
 }
 
 function assertManifest(manifest: BundleManifest) {
-  expect(manifest.engine).toBe("ai-quest-engine-3d-lite");
+  expect(manifest.engine).toBe(ENGINE_NAME);
+  expect(manifest.engineVersion).toBe(ENGINE_VERSION);
   expect(manifest.buildId).toMatch(/^build-/);
-  expect(manifest.runtimeVersion).toBeTruthy();
-  expect(manifest.specVersion).toBeTruthy();
+  expect(manifest.runtimeVersion).toBe(RUNTIME_VERSION);
+  expect(manifest.specVersion).toBe(SPEC_VERSION);
+  expect(manifest.exportFormatVersion).toBe(EXPORT_FORMAT_VERSION);
+  expect(manifest.contract.runtimeVersion).toBe(RUNTIME_VERSION);
+  expect(manifest.compatibility.status).toBe("compatible");
   expect(manifest.standalone).toBe(true);
   expect(manifest.requiresNetwork).toBe(false);
   expect(manifest.capabilities.networkRequired).toBe(false);
@@ -191,6 +219,12 @@ async function waitForRuntimeReady(page: Page) {
 async function getRuntimeHealth(page: Page) {
   return page.evaluate(() => {
     return (window as Window & { __AQE_EXPORT_HEALTH__?: RuntimeHealth }).__AQE_EXPORT_HEALTH__;
+  });
+}
+
+async function getRuntimeContract(page: Page) {
+  return page.evaluate(() => {
+    return (window as Window & { __AQE_RUNTIME_CONTRACT__?: RuntimeContract }).__AQE_RUNTIME_CONTRACT__;
   });
 }
 

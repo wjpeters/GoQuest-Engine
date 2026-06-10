@@ -1,10 +1,16 @@
 import type { WorldSpec } from "../engine/quest/WorldSpec";
+import { ENGINE_VERSION, RUNTIME_VERSION, SPEC_VERSION } from "../engine/version/EngineVersion";
 
 export const DecisionQuest3D: WorldSpec = {
   id: "decision-quest-3d",
   title: "Decision Quest 3D",
   description: "A lightweight branching decision room with outcome scoring.",
-  version: "0.1.0",
+  version: SPEC_VERSION,
+  specVersion: SPEC_VERSION,
+  createdWithEngineVersion: ENGINE_VERSION,
+  lastEditedWithEngineVersion: ENGINE_VERSION,
+  requiredRuntimeVersion: RUNTIME_VERSION,
+  requiredCapabilities: ["renderer:webgl2", "renderer:canvas2d", "export:single-html", "export:zip-static"],
   metadata: { template: "DecisionQuest3D" },
   viewport: { width: 1280, height: 720, background: "#101012" },
   environment: { background: "#101012", ambientColor: "#f1f5f9", showGrid: true, gridColor: "#30313a" },
@@ -78,6 +84,7 @@ export const DecisionQuest3D: WorldSpec = {
     },
   ],
   quest: {
+    specVersion: SPEC_VERSION,
     variables: { choice: "none" },
     score: 0,
     stages: [{ id: "choose", title: "Choose", description: "Select one path and review the outcome." }],

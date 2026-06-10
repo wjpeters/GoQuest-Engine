@@ -1,10 +1,16 @@
 import type { WorldSpec } from "../engine/quest/WorldSpec";
+import { ENGINE_VERSION, RUNTIME_VERSION, SPEC_VERSION } from "../engine/version/EngineVersion";
 
 export const CyberRiskRoom: WorldSpec = {
   id: "cyber-risk-room",
   title: "Cyber Risk Room",
   description: "Inspect systems, find the exposure, and complete the incident triage.",
-  version: "0.1.0",
+  version: SPEC_VERSION,
+  specVersion: SPEC_VERSION,
+  createdWithEngineVersion: ENGINE_VERSION,
+  lastEditedWithEngineVersion: ENGINE_VERSION,
+  requiredRuntimeVersion: RUNTIME_VERSION,
+  requiredCapabilities: ["renderer:webgl2", "renderer:canvas2d", "export:single-html", "export:zip-static"],
   metadata: { template: "CyberRiskRoom" },
   viewport: { width: 1280, height: 720, background: "#090d18" },
   environment: { background: "#090d18", ambientColor: "#dbeafe", showGrid: true, gridColor: "#263249" },
@@ -99,6 +105,7 @@ export const CyberRiskRoom: WorldSpec = {
     },
   ],
   quest: {
+    specVersion: SPEC_VERSION,
     variables: { serverScanned: false },
     score: 0,
     stages: [

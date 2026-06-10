@@ -22,6 +22,9 @@ Een gecertificeerde export levert:
 - export package files;
 - `ExportHealthReport`;
 - pass/warn/fail status;
+- engine, runtime, spec en export format versions;
+- compatibility result;
+- migration summary;
 - UI-samenvatting met checks;
 - downloadbare health report JSON.
 
@@ -40,7 +43,12 @@ Waarschuwingen blokkeren niet. Hard failures blokkeren ZIP en single HTML downlo
 ### Spec
 
 - `worldspec_schema_valid`: valideert de huidige `WorldSpec` met Zod.
-- `runtime_version_compatible`: controleert of de specversie door deze runtime wordt ondersteund.
+- `runtime_version_compatible`: controleert of de spec en runtime contractueel compatible zijn.
+- `runtime_contract_valid`: valideert het runtimecontract in het manifest.
+- `manifest_version_valid`: controleert engine, runtime en export format versions.
+- `spec_version_supported`: controleert of de `WorldSpec.specVersion` ondersteund wordt.
+- `required_capabilities_supported`: controleert of runtime capabilities de spec-eisen dekken.
+- `migration_status`: meldt of een spec migratie of legacy-stempel nodig was.
 
 ### Runtime Independence
 
@@ -100,11 +108,12 @@ De standalone runtime exposeert minimale lokale diagnostics:
 ```js
 window.__AQE_RUNTIME_READY__
 window.__AQE_EXPORT_HEALTH__
+window.__AQE_RUNTIME_CONTRACT__
 window.__AQE_SMOKE_CLICK_FIRST__
 window.__AQE_TEST_HOOKS__
 ```
 
-Deze markers zijn bedoeld voor lokale exportcertificering. Ze doen geen netwerkcalls en bevatten geen secrets.
+Deze markers zijn bedoeld voor lokale exportcertificering. Ze doen geen netwerkcalls en bevatten geen secrets. `__AQE_EXPORT_HEALTH__` bevat runtime version, spec version, export format version, selected renderer en compatibility issues.
 
 ## Playwright Export Smoke-tests
 

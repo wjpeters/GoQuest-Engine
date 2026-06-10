@@ -828,6 +828,21 @@ button {
   white-space: nowrap;
 }
 
+.validation-contract {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.validation-contract span {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
 .ai-safety-note {
   display: inline-flex;
   align-items: center;
@@ -976,6 +991,42 @@ button {
 .export-metric strong {
   color: var(--text);
   font-size: 14px;
+}
+
+.export-contract-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.contract-fact {
+  min-width: 0;
+}
+
+.contract-fact.wide {
+  grid-column: span 2;
+}
+
+.contract-fact small,
+.contract-fact strong {
+  display: block;
+}
+
+.contract-fact small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.contract-fact strong {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .export-certification-grid {
@@ -1173,8 +1224,13 @@ button {
   }
 
   .export-certification-grid,
-  .export-metrics {
+  .export-metrics,
+  .export-contract-summary {
     grid-template-columns: 1fr;
+  }
+
+  .contract-fact.wide {
+    grid-column: auto;
   }
 
   .dialog-actions.split {

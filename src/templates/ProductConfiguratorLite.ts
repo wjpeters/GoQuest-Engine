@@ -1,10 +1,16 @@
 import type { WorldSpec } from "../engine/quest/WorldSpec";
+import { ENGINE_VERSION, RUNTIME_VERSION, SPEC_VERSION } from "../engine/version/EngineVersion";
 
 export const ProductConfiguratorLite: WorldSpec = {
   id: "product-configurator-lite",
   title: "Product Configurator Lite",
   description: "A compact 3D selection quest for product education and guided selling.",
-  version: "0.1.0",
+  version: SPEC_VERSION,
+  specVersion: SPEC_VERSION,
+  createdWithEngineVersion: ENGINE_VERSION,
+  lastEditedWithEngineVersion: ENGINE_VERSION,
+  requiredRuntimeVersion: RUNTIME_VERSION,
+  requiredCapabilities: ["renderer:webgl2", "renderer:canvas2d", "export:single-html", "export:zip-static"],
   metadata: { template: "ProductConfiguratorLite" },
   viewport: { width: 1280, height: 720, background: "#0b0d10" },
   environment: { background: "#0b0d10", ambientColor: "#f8fafc", showGrid: true, gridColor: "#2f363d" },
@@ -88,6 +94,7 @@ export const ProductConfiguratorLite: WorldSpec = {
     },
   ],
   quest: {
+    specVersion: SPEC_VERSION,
     variables: { baseSelected: false, addons: 0 },
     score: 0,
     stages: [{ id: "configure", title: "Configure", description: "Select the base and recommended add-ons." }],

@@ -82,9 +82,17 @@ Exportcode staat in:
 src/engine/export/
 ```
 
+Versie- en contractcode staat in:
+
+```text
+src/engine/version/
+```
+
 Bij wijzigingen aan export:
 
 - Laat downloads via de Export Certification Layer lopen.
+- Gebruik centrale constants uit `src/engine/version/EngineVersion.ts`; voeg geen losse version strings toe.
+- Houd `RuntimeContract`, `ExportManifest`, compatibility checks en migraties synchroon.
 - Update of voeg checks toe in `src/engine/export/certification/` als nieuwe runtime- of packagingrisico's ontstaan.
 - Controleer dat `index.html` de quest spec embedt of anders nog steeds via `file://` werkt.
 - Controleer dat `runtime.js` niet naar editor routes, SaaS hosts of externe APIs verwijst.
@@ -163,6 +171,12 @@ npm run test:exports
 
 Deze Playwright-suite test de gegenereerde standalone packages, niet de editor UI. Hij moet zonder SaaS-backend, API routes, CDN of externe netwerkrequests draaien. Als Playwright lokaal nog geen browser heeft, installeer die buiten de codebase met `npx playwright install chromium`.
 
+Na version/manifest/compatibility/migration wijzigingen:
+
+```bash
+npm run test
+```
+
 Voor UI/render/export wijzigingen:
 
 ```bash
@@ -177,6 +191,7 @@ Controleer in de browser:
 - Quest click-actions geven runtime feedback.
 - Export dialog opent en toont standalone files.
 - Export certification toont pass/warn/fail met health report.
+- Runtime contract, manifest compatibility en migration status zijn zichtbaar in export/validation UI.
 - Export smoke-tests slagen voor de starter templates.
 - Geldige templates komen door certificering zonder hard failures.
 - Smalle viewport heeft geen horizontale overflow.

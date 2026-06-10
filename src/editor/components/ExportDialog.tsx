@@ -10,7 +10,18 @@ interface ExportDialogProps {
 }
 
 const checkGroups: Array<{ title: string; ids: string[] }> = [
-  { title: "Spec", ids: ["worldspec_schema_valid", "runtime_version_compatible"] },
+  {
+    title: "Version contract",
+    ids: [
+      "worldspec_schema_valid",
+      "runtime_version_compatible",
+      "runtime_contract_valid",
+      "manifest_version_valid",
+      "spec_version_supported",
+      "required_capabilities_supported",
+      "migration_status",
+    ],
+  },
   { title: "Runtime independence", ids: ["no_editor_imports", "no_api_calls", "no_external_network_requests", "works_without_webgpu"] },
   { title: "Assets", ids: ["assets_present"] },
   { title: "Portability", ids: ["manifest_valid", "loads_from_file_possible", "loads_from_static_server", "mobile_viewport_ready"] },
@@ -151,6 +162,17 @@ export function ExportDialog({ world, onClose }: ExportDialogProps) {
               <Metric label="Files" value={String(certified.healthReport.artifacts.files.length)} />
             </div>
 
+            <section className="export-contract-summary" aria-label="Runtime contract summary">
+              <ContractFact label="Engine" value={certified.healthReport.engineVersion} />
+              <ContractFact label="Runtime" value={certified.healthReport.runtimeVersion} />
+              <ContractFact label="Spec" value={certified.healthReport.specVersion} />
+              <ContractFact label="Export format" value={certified.healthReport.exportFormatVersion} />
+              <ContractFact label="Compatibility" value={compatibilityLabel(certified.healthReport.compatibility.status)} />
+              <ContractFact label="Migrations" value={migrationLabel(certified.healthReport.migrationsApplied, certified.healthReport.migrationWarnings)} />
+              <ContractFact label="Required capabilities" value={requiredCapabilitiesLabel(certified.package.migration.migratedSpec.requiredCapabilities)} wide />
+              <ContractFact label="Portability" value={certified.canDownload ? "Standalone, static and future-readable" : "Blocked until contract issues are fixed"} wide />
+            </section>
+
             <div className="export-certification-grid">
               {checkGroups.map((group) => (
                 <section className="cert-group" key={group.title}>
@@ -205,6 +227,15 @@ export function ExportDialog({ world, onClose }: ExportDialogProps) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="export-metric">
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function ContractFact({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={`contract-fact ${wide ? "wide" : ""}`}>
       <small>{label}</small>
       <strong>{value}</strong>
     </div>
@@ -274,6 +305,28 @@ function formatBytes(bytes: number) {
 
 function formatMs(value?: number) {
   return value === undefined ? "Not measured" : `${Math.round(value)}ms`;
+}
+
+function compatibilityLabel(status: CertifiedExportResult["healthReport"]["compatibility"]["status"]) {
+  if (status === "compatible") {
+    return "Compatible";
+  }
+  if (status === "warning") {
+    return "Compatible with warnings";
+  }
+  return "Incompatible";
+}
+
+function migrationLabel(applied: string[], warnings: string[]) {
+  if (applied.length === 0 && warnings.length === 0) {
+    return "None";
+  }
+
+  return [...applied, ...warnings].join(", ");
+}
+
+function requiredCapabilitiesLabel(capabilities: string[]) {
+  return capabilities.length > 0 ? capabilities.join(", ") : "None";
 }
 
 function downloadBlob(blob: Blob, filename: string) {

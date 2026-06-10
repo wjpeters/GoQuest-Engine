@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ActionSchema } from "./Actions";
 import { ConditionSchema } from "./Conditions";
 import { QuestSpecSchema } from "./QuestSpec";
+import { ENGINE_VERSION, RUNTIME_VERSION, SPEC_VERSION } from "../version/EngineVersion";
 
 const Vec3TupleSchema = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -59,7 +60,12 @@ export const WorldSpecSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   description: z.string().default(""),
-  version: z.string().default("0.1.0"),
+  version: z.string().default(SPEC_VERSION),
+  specVersion: z.string().default(SPEC_VERSION),
+  createdWithEngineVersion: z.string().optional(),
+  lastEditedWithEngineVersion: z.string().default(ENGINE_VERSION),
+  requiredRuntimeVersion: z.string().default(RUNTIME_VERSION),
+  requiredCapabilities: z.array(z.string().min(1)).default([]),
   metadata: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
   viewport: z.object({
     width: z.number().min(320).default(1280),

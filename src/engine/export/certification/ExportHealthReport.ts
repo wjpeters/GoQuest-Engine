@@ -1,5 +1,7 @@
 import type { BundleManifest } from "../BundleManifest";
 import type { StaticExportFiles } from "../ExportBuilder";
+import type { CompatibilityResult } from "../../version/Compatibility";
+import type { MigrationResult } from "../../version/migrations";
 
 export type ExportHealthStatus = "pass" | "warn" | "fail";
 
@@ -17,8 +19,13 @@ export type ExportHealthReport = {
   createdAt: string;
   overallStatus: ExportHealthStatus;
   buildId: string;
+  engineVersion: string;
   runtimeVersion: string;
   specVersion: string;
+  exportFormatVersion: string;
+  compatibility: CompatibilityResult;
+  migrationsApplied: string[];
+  migrationWarnings: string[];
   checks: ExportHealthCheck[];
   metrics: {
     bundleBytes: number;
@@ -45,8 +52,11 @@ export type ExportPackage = {
   createdAt: string;
   runtimeVersion: string;
   specVersion: string;
+  exportFormatVersion: string;
   files: StaticExportFiles;
   manifest: BundleManifest;
+  compatibility: CompatibilityResult;
+  migration: MigrationResult;
 };
 
 export type CertifiedExportResult = {

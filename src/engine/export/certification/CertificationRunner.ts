@@ -3,6 +3,10 @@ import type { BundleManifest } from "../BundleManifest";
 import type { StaticExportFiles } from "../ExportBuilder";
 import type { BrowserSmokeResult, ExportHealthCheck, ExportHealthReport } from "./ExportHealthReport";
 import { overallStatus } from "./ExportHealthReport";
+import type { CompatibilityResult } from "../../version/Compatibility";
+import { ENGINE_VERSION, EXPORT_FORMAT_VERSION, RUNTIME_VERSION, SUPPORTED_EXPORT_FORMAT_VERSIONS, SUPPORTED_SPEC_VERSIONS } from "../../version/EngineVersion";
+import { validateRuntimeContract } from "../../version/RuntimeContract";
+import type { MigrationResult } from "../../version/migrations";
 import { inspectNoApiCalls } from "./checks/inspectNoApiCalls";
 import { inspectNoEditorImports } from "./checks/inspectNoEditorImports";
 import { inspectNoExternalNetwork } from "./checks/inspectNoExternalNetwork";
@@ -15,8 +19,6 @@ import { validateRuntimeCapabilities } from "./checks/validateRuntimeCapabilitie
 import { validateStaticHosting } from "./checks/validateStaticHosting";
 import { validateWorldSpec } from "./checks/validateWorldSpec";
 
-export const RUNTIME_VERSION = "0.1.0";
-const SUPPORTED_SPEC_VERSIONS = ["0.1.0"];
 const FIRST_RENDER_BUDGET_MS = 1500;
 
 export interface CertificationInput {
@@ -25,6 +27,8 @@ export interface CertificationInput {
   manifest: BundleManifest;
   buildId: string;
   createdAt: string;
+  compatibility: CompatibilityResult;
+  migration: MigrationResult;
   smokeResult?: BrowserSmokeResult;
 }
 
@@ -32,7 +36,12 @@ export class CertificationRunner {
   static run(input: CertificationInput): ExportHealthReport {
     const checks: ExportHealthCheck[] = [
       validateWorldSpec(input.world),
-      this.validateRuntimeVersion(input.world.version),
+      this.validateRuntimeCompatibility(input.compatibility),
+      this.validateRuntimeContract(input.manifest),
+      this.validateManifestVersion(input.manifest),
+      this.validateSpecVersion(input.compatibility, input.world.specVersion),
+      this.validateRequiredCapabilities(input.compatibility),
+      this.validateMigration(input.migration),
       inspectNoEditorImports(input.files),
       inspectNoApiCalls(input.files),
       inspectNoExternalNetwork(input.files),
@@ -62,8 +71,13 @@ export class CertificationRunner {
       createdAt: input.createdAt,
       overallStatus: overallStatus(checks),
       buildId: input.buildId,
+      engineVersion: ENGINE_VERSION,
       runtimeVersion: RUNTIME_VERSION,
-      specVersion: input.world.version,
+      specVersion: input.world.specVersion,
+      exportFormatVersion: EXPORT_FORMAT_VERSION,
+      compatibility: input.compatibility,
+      migrationsApplied: input.migration.appliedMigrations,
+      migrationWarnings: input.migration.warnings,
       checks,
       metrics: {
         bundleBytes,
@@ -78,20 +92,18 @@ export class CertificationRunner {
     };
   }
 
-  private static validateRuntimeVersion(specVersion: string): ExportHealthCheck {
-    if (SUPPORTED_SPEC_VERSIONS.includes(specVersion)) {
-      return check("runtime_version_compatible", "Runtime version compatible", "pass", "WorldSpec version is supported by this runtime.");
+  private static validateRuntimeCompatibility(compatibility: CompatibilityResult): ExportHealthCheck {
+    if (compatibility.status === "compatible") {
+      return check("runtime_version_compatible", "Runtime version compatible", "pass", "WorldSpec is compatible with the bundled runtime contract.");
     }
 
-    const [runtimeMajor] = RUNTIME_VERSION.split(".");
-    const [specMajor] = specVersion.split(".");
-    if (runtimeMajor === specMajor) {
+    if (compatibility.status === "warning") {
       return check(
         "runtime_version_compatible",
         "Runtime version compatible",
         "warn",
-        "WorldSpec version is not explicitly certified for this runtime. Migration may be needed.",
-        { runtimeVersion: RUNTIME_VERSION, specVersion, supportedSpecVersions: SUPPORTED_SPEC_VERSIONS },
+        "WorldSpec is compatible, but compatibility warnings were found.",
+        compatibility.issues,
       );
     }
 
@@ -99,8 +111,95 @@ export class CertificationRunner {
       "runtime_version_compatible",
       "Runtime version compatible",
       "fail",
-      "WorldSpec version is incompatible with this runtime.",
-      { runtimeVersion: RUNTIME_VERSION, specVersion, supportedSpecVersions: SUPPORTED_SPEC_VERSIONS },
+      "WorldSpec is incompatible with the bundled runtime contract.",
+      compatibility.issues,
+    );
+  }
+
+  private static validateRuntimeContract(manifest: BundleManifest): ExportHealthCheck {
+    const result = validateRuntimeContract(manifest.contract);
+    if (result.success) {
+      return check("runtime_contract_valid", "Runtime contract valid", "pass", "Manifest includes a valid runtime contract.");
+    }
+
+    return check(
+      "runtime_contract_valid",
+      "Runtime contract valid",
+      "fail",
+      "Manifest runtime contract is invalid.",
+      result.error.issues.map((issue) => ({ path: issue.path.join(".") || "(root)", message: issue.message })),
+    );
+  }
+
+  private static validateManifestVersion(manifest: BundleManifest): ExportHealthCheck {
+    const valid =
+      manifest.engineVersion === ENGINE_VERSION &&
+      manifest.runtimeVersion === RUNTIME_VERSION &&
+      manifest.exportFormatVersion === EXPORT_FORMAT_VERSION &&
+      (SUPPORTED_EXPORT_FORMAT_VERSIONS as readonly string[]).includes(manifest.exportFormatVersion);
+
+    if (valid) {
+      return check("manifest_version_valid", "Manifest versions valid", "pass", "Manifest versions match the current exporter contract.");
+    }
+
+    return check("manifest_version_valid", "Manifest versions valid", "fail", "Manifest version metadata does not match this exporter.", {
+      manifest: {
+        engineVersion: manifest.engineVersion,
+        runtimeVersion: manifest.runtimeVersion,
+        specVersion: manifest.specVersion,
+        exportFormatVersion: manifest.exportFormatVersion,
+      },
+      expected: { ENGINE_VERSION, RUNTIME_VERSION, EXPORT_FORMAT_VERSION },
+    });
+  }
+
+  private static validateSpecVersion(compatibility: CompatibilityResult, specVersion: string): ExportHealthCheck {
+    const unsupported = compatibility.issues.filter((issue) => issue.code.includes("spec_version"));
+    if (unsupported.length === 0 && (SUPPORTED_SPEC_VERSIONS as readonly string[]).includes(specVersion)) {
+      return check("spec_version_supported", "Spec version supported", "pass", "WorldSpec version is explicitly supported.");
+    }
+
+    return check("spec_version_supported", "Spec version supported", "fail", "WorldSpec version is not supported by this runtime.", {
+      specVersion,
+      supportedSpecVersions: SUPPORTED_SPEC_VERSIONS,
+      issues: unsupported,
+    });
+  }
+
+  private static validateRequiredCapabilities(compatibility: CompatibilityResult): ExportHealthCheck {
+    const capabilityIssues = compatibility.issues.filter(
+      (issue) => issue.code === "required_capabilities_missing" || issue.code.endsWith("_unsupported"),
+    );
+
+    if (capabilityIssues.length === 0) {
+      return check("required_capabilities_supported", "Required capabilities supported", "pass", "Runtime supports required and used spec capabilities.");
+    }
+
+    return check(
+      "required_capabilities_supported",
+      "Required capabilities supported",
+      "fail",
+      "Runtime is missing capabilities required by this spec.",
+      capabilityIssues,
+    );
+  }
+
+  private static validateMigration(migration: MigrationResult): ExportHealthCheck {
+    if (migration.appliedMigrations.length > 0 || migration.warnings.length > 0) {
+      return check("migration_status", "Migration status", "warn", "WorldSpec was migrated or stamped before export.", {
+        fromVersion: migration.fromVersion,
+        toVersion: migration.toVersion,
+        appliedMigrations: migration.appliedMigrations,
+        warnings: migration.warnings,
+      });
+    }
+
+    return check(
+      "migration_status",
+      "Migration status",
+      "pass",
+      "WorldSpec already uses the current spec contract; no migration was required.",
+      { version: migration.toVersion },
     );
   }
 

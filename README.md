@@ -89,6 +89,7 @@ npm run preview
 | `npm run dev` | Start Vite dev server op `127.0.0.1`. |
 | `npm run build` | Draait TypeScript checks en bouwt de Vite app. |
 | `npm run preview` | Serveert de production build lokaal. |
+| `npm run test` | Draait runtime-contract, manifest, compatibility en migration tests. |
 | `npm run test:exports` | Bouwt standalone exports voor alle templates en smoke-test ze met Playwright. |
 
 ## Projectstructuur
@@ -178,6 +179,8 @@ quest-spec.json
 
 Elke export loopt door de Export Certification Layer voordat download wordt toegestaan. Die laag valideert de spec, inspecteert runtime-onafhankelijkheid, controleert assets en manifest, test `file://`/static-hosting draagbaarheid, bewaakt bundlegrootte en draait waar mogelijk een lokale browser smoke-test. Zie [docs/export-certification.md](docs/export-certification.md).
 
+Het runtime/export contract is expliciet versieerbaar. `WorldSpec`, `QuestSpec`, standalone runtime, manifest en certification gebruiken centrale constants uit `src/engine/version/EngineVersion.ts`. De export bevat een gevalideerd runtimecontract, compatibility result en migratiehistorie zodat toekomstige editor-versies oude project specs betrouwbaar kunnen begrijpen. Zie [docs/runtime-contract.md](docs/runtime-contract.md).
+
 Extra export smoke-tests kunnen lokaal worden gedraaid met:
 
 ```bash
@@ -203,4 +206,5 @@ Zie `src/templates/`.
 - Houd de export runtime standalone en netwerkvrij.
 - Voeg geen externe game/3D engine dependency toe.
 - Draai minimaal `npm run build` na codewijzigingen.
+- Draai `npm run test` na version/manifest/compatibility/migration wijzigingen.
 - Draai `npm run test:exports` na export/runtime/certification wijzigingen.
