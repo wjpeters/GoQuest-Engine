@@ -84,6 +84,8 @@ src/engine/export/
 
 Bij wijzigingen aan export:
 
+- Laat downloads via de Export Certification Layer lopen.
+- Update of voeg checks toe in `src/engine/export/certification/` als nieuwe runtime- of packagingrisico's ontstaan.
 - Controleer dat `index.html` de quest spec embedt of anders nog steeds via `file://` werkt.
 - Controleer dat `runtime.js` niet naar editor routes, SaaS hosts of externe APIs verwijst.
 - Houd runtimecode zo klein mogelijk en quest-specifiek waar praktisch.
@@ -153,6 +155,14 @@ Minimale check na codewijzigingen:
 npm run build
 ```
 
+Na export-, runtime- of certification-wijzigingen:
+
+```bash
+npm run test:exports
+```
+
+Deze Playwright-suite test de gegenereerde standalone packages, niet de editor UI. Hij moet zonder SaaS-backend, API routes, CDN of externe netwerkrequests draaien. Als Playwright lokaal nog geen browser heeft, installeer die buiten de codebase met `npx playwright install chromium`.
+
 Voor UI/render/export wijzigingen:
 
 ```bash
@@ -166,6 +176,9 @@ Controleer in de browser:
 - Entity selectie werkt.
 - Quest click-actions geven runtime feedback.
 - Export dialog opent en toont standalone files.
+- Export certification toont pass/warn/fail met health report.
+- Export smoke-tests slagen voor de starter templates.
+- Geldige templates komen door certificering zonder hard failures.
 - Smalle viewport heeft geen horizontale overflow.
 
 ## Dependencybeleid

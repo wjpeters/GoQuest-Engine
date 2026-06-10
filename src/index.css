@@ -877,6 +877,12 @@ button {
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.48);
 }
 
+.certified-export-dialog {
+  width: min(880px, 100%);
+  max-height: min(820px, calc(100vh - 40px));
+  overflow: auto;
+}
+
 .dialog-header {
   display: flex;
   align-items: flex-start;
@@ -896,9 +902,156 @@ button {
   line-height: 1.45;
 }
 
+.export-health-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  border-radius: 13px;
+  background: rgba(125, 211, 252, 0.08);
+}
+
+.export-health-hero.pass {
+  border-color: rgba(167, 243, 208, 0.34);
+  background: rgba(167, 243, 208, 0.09);
+  color: #d1fae5;
+}
+
+.export-health-hero.warn {
+  border-color: rgba(251, 191, 36, 0.38);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+}
+
+.export-health-hero.fail {
+  border-color: rgba(251, 113, 133, 0.38);
+  background: rgba(251, 113, 133, 0.1);
+  color: #fecdd3;
+}
+
+.export-health-hero strong {
+  display: block;
+  font-size: 14px;
+}
+
+.export-health-hero span {
+  display: block;
+  margin-top: 4px;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.export-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.export-metric {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.export-metric small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.export-metric strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.export-certification-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cert-group {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.cert-group-title {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cert-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: flex-start;
+  padding: 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.cert-check.pass {
+  color: #bbf7d0;
+}
+
+.cert-check.warn {
+  color: #fde68a;
+}
+
+.cert-check.fail {
+  color: #fecdd3;
+}
+
+.cert-check strong,
+.cert-check small {
+  display: block;
+}
+
+.cert-check strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cert-check small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .export-file-list {
   display: grid;
   gap: 8px;
+}
+
+.export-file-list.compact {
+  max-height: 150px;
+  overflow: auto;
 }
 
 .export-file-row {
@@ -911,10 +1064,41 @@ button {
   color: var(--soft);
 }
 
+.export-file-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-file-row small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.dialog-actions.split {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-secondary-actions,
+.dialog-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tool-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
 }
 
 @media (max-width: 1180px) {
@@ -986,6 +1170,16 @@ button {
 
   .bottom-dock {
     min-height: 320px;
+  }
+
+  .export-certification-grid,
+  .export-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-actions.split {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .runtime-message {

@@ -89,6 +89,7 @@ npm run preview
 | `npm run dev` | Start Vite dev server op `127.0.0.1`. |
 | `npm run build` | Draait TypeScript checks en bouwt de Vite app. |
 | `npm run preview` | Serveert de production build lokaal. |
+| `npm run test:exports` | Bouwt standalone exports voor alle templates en smoke-test ze met Playwright. |
 
 ## Projectstructuur
 
@@ -175,6 +176,16 @@ quest-spec.json
 
 `index.html` embedt de quest JSON zodat openen via `file://` geen fetch naar een lokale JSON file nodig heeft. `runtime.js` bevat de minimale standalone spelerlogica.
 
+Elke export loopt door de Export Certification Layer voordat download wordt toegestaan. Die laag valideert de spec, inspecteert runtime-onafhankelijkheid, controleert assets en manifest, test `file://`/static-hosting draagbaarheid, bewaakt bundlegrootte en draait waar mogelijk een lokale browser smoke-test. Zie [docs/export-certification.md](docs/export-certification.md).
+
+Extra export smoke-tests kunnen lokaal worden gedraaid met:
+
+```bash
+npm run test:exports
+```
+
+Deze Playwright-suite bouwt de drie starter templates als standalone packages, serveert ze via een lokale static server, blokkeert externe netwerkrequests, controleert runtime readiness/health, voert een interaction smoke-test uit en test minimaal een mobile viewport. Als Playwright nog geen browser heeft geinstalleerd, draai eenmalig `npx playwright install chromium`.
+
 ## Templates
 
 Beschikbare templates:
@@ -192,3 +203,4 @@ Zie `src/templates/`.
 - Houd de export runtime standalone en netwerkvrij.
 - Voeg geen externe game/3D engine dependency toe.
 - Draai minimaal `npm run build` na codewijzigingen.
+- Draai `npm run test:exports` na export/runtime/certification wijzigingen.

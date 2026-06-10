@@ -35,8 +35,32 @@ export function renderIndexHtml(world: WorldSpec) {
 </html>`;
 }
 
+export function renderSingleHtml(world: WorldSpec) {
+  return renderIndexHtml(world).replace('<script src="./runtime.js"></script>', `<script>${renderRuntimeJs()}</script>`);
+}
+
 export function renderRuntimeJs() {
   return `(() => {
+  const startedAt = performance.now();
+  const diagnostics = {
+    ready: false,
+    firstRenderMs: undefined,
+    renderer: "none",
+    errors: [],
+    events: []
+  };
+  window.__AQE_RUNTIME_READY__ = false;
+  window.__AQE_EXPORT_HEALTH__ = diagnostics;
+  const recordError = (error) => diagnostics.errors.push(String(error && error.message ? error.message : error));
+  addEventListener("error", (event) => recordError(event.message || "runtime error"));
+  addEventListener("unhandledrejection", (event) => recordError(event.reason || "unhandled rejection"));
+  const markReady = (renderer) => {
+    if (diagnostics.ready) return;
+    diagnostics.ready = true;
+    diagnostics.renderer = renderer;
+    diagnostics.firstRenderMs = performance.now() - startedAt;
+    window.__AQE_RUNTIME_READY__ = true;
+  };
   const specNode = document.getElementById("quest-spec");
   const world = JSON.parse(specNode.textContent);
   const canvas = document.getElementById("quest");
@@ -104,9 +128,77 @@ export function renderRuntimeJs() {
     if (a.type === "gotoStage") world.quest.currentStage = a.stageId;
     if (a.type === "completeQuest") state.completed = true;
   };
-  const trigger = (name, entityId) => world.interactions.filter(i => i.trigger === name && (!i.targetEntityId || i.targetEntityId === entityId)).forEach(i => evaluate(i.conditions) && i.actions.forEach(action));
+  const trigger = (name, entityId) => {
+    let applied = 0;
+    world.interactions.filter(i => i.trigger === name && (!i.targetEntityId || i.targetEntityId === entityId)).forEach(i => {
+      if (!evaluate(i.conditions)) return;
+      diagnostics.events.push(name + ":" + (entityId || "scene") + ":" + i.id);
+      i.actions.forEach(action);
+      applied += 1;
+    });
+    return applied;
+  };
+  window.__AQE_SMOKE_CLICK_FIRST__ = () => {
+    const before = diagnostics.events.length;
+    const interaction = world.interactions.find(i => i.trigger === "click" && i.targetEntityId);
+    if (!interaction) return { changed: false, message: "No click interactions are available." };
+    try {
+      const applied = trigger("click", interaction.targetEntityId);
+      return {
+        changed: diagnostics.events.length > before && applied > 0,
+        message: applied > 0 ? "First click interaction executed." : "First click interaction did not pass its conditions."
+      };
+    } catch (error) {
+      recordError(error);
+      return { changed: false, message: "First click interaction threw an error." };
+    }
+  };
+  window.__AQE_TEST_HOOKS__ = {
+    getHealth: () => diagnostics,
+    getEventCount: () => diagnostics.events.length,
+    getState: () => ({
+      quest: JSON.parse(JSON.stringify(world.quest)),
+      completed: state.completed,
+      visibleEntityIds: world.entities.filter(e => e.visible).map(e => e.id)
+    }),
+    clickFirstInteraction: () => window.__AQE_SMOKE_CLICK_FIRST__()
+  };
+  const drawCanvas2d = () => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      recordError("Canvas2D unavailable.");
+      return;
+    }
+    const resize2d = () => {
+      const ratio = devicePixelRatio || 1;
+      canvas.width = Math.floor(innerWidth * ratio);
+      canvas.height = Math.floor(innerHeight * ratio);
+      canvas.style.width = innerWidth + "px";
+      canvas.style.height = innerHeight + "px";
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    };
+    const frame2d = () => {
+      requestAnimationFrame(frame2d);
+      ctx.fillStyle = world.environment.background || "#080b14";
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+      for (const e of world.entities) {
+        if (!e.visible) continue;
+        const p = e.transform.position, s = e.transform.scale;
+        const size = Math.max(18, 56 / Math.max(1, p[2] + 5));
+        ctx.globalAlpha = e.material.opacity;
+        ctx.fillStyle = e.material.color;
+        ctx.fillRect(innerWidth / 2 + p[0] * 70 - size / 2, innerHeight / 2 - p[1] * 70 - size / 2, size * s[0], size * s[1]);
+      }
+      ctx.globalAlpha = 1;
+      markReady("canvas2d");
+    };
+    addEventListener("resize", resize2d);
+    resize2d();
+    trigger("sceneStart");
+    frame2d();
+  };
   const gl = canvas.getContext("webgl2", { antialias: true, alpha: true });
-  if (!gl) { document.body.insertAdjacentHTML("beforeend", "<p style='position:fixed;inset:auto 20px 20px;color:#fff'>WebGL2 unavailable.</p>"); return; }
+  if (!gl) { drawCanvas2d(); return; }
   const compile = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const program = gl.createProgram();
   gl.attachShader(program, compile(gl.VERTEX_SHADER, "#version 300 es\\nin vec3 aPosition;uniform mat4 uModel;uniform mat4 uViewProjection;void main(){gl_Position=uViewProjection*uModel*vec4(aPosition,1.0);}"));
@@ -132,6 +224,7 @@ export function renderRuntimeJs() {
       const m = mesh(e.type); gl.bindBuffer(gl.ARRAY_BUFFER, m.vb); gl.enableVertexAttribArray(loc.p); gl.vertexAttribPointer(loc.p, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ib);
       gl.uniformMatrix4fv(loc.m, false, mat4.model(e)); gl.uniform4fv(loc.c, hex(e.material.color, e.material.opacity)); gl.drawElements(gl.TRIANGLES, m.n, gl.UNSIGNED_SHORT, 0);
     }
+    markReady("webgl2");
   };
   const project = (e) => {
     const p = e.transform.position, v = vp(), x = v[0]*p[0]+v[4]*p[1]+v[8]*p[2]+v[12], y = v[1]*p[0]+v[5]*p[1]+v[9]*p[2]+v[13], w = v[3]*p[0]+v[7]*p[1]+v[11]*p[2]+v[15];
